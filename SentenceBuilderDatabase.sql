@@ -1,3 +1,5 @@
+# Code created by Omesh Sana
+
 CREATE DATABASE sentence_builder;
 USE sentence_builder;
 
