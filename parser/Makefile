@@ -2,17 +2,15 @@
 # Code by Archisha Sasson
 
 BIN_DIR := bin
-SRC_DIR := src/parser
+SRC_DIR := src/main/java/parser
 TEST_DIR := test/parser
-ALT_SRC_DIR := src/main/java/parser
-ALT_TEST_DIR := src/test/java/parser
 MAIN_CLASS := parser.Main
 TEST_CLASS := parser.ParserTestRunner
 SAMPLE_FILE := sample_texts/simple.txt
 # Test case for parser test runner: simple or edge.
 TEST_CASE := simple
-SRC_FILES := $(wildcard $(SRC_DIR)/*.java) $(wildcard $(ALT_SRC_DIR)/*.java)
-TEST_FILES := $(wildcard $(TEST_DIR)/*.java) $(wildcard $(ALT_TEST_DIR)/*.java)
+SRC_FILES := $(wildcard $(SRC_DIR)/*.java)
+TEST_FILES := $(wildcard $(TEST_DIR)/*.java)
 
 # Mark targets as phony so they always run when requested.
 .PHONY: compile run test test-edge clean
