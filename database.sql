@@ -20,4 +20,23 @@ CREATE TABLE words (
     sentence_end_count INT NOT NULL DEFAULT 0
 );
 
+CREATE TABLE word_follows (
+    word_id INT NOT NULL,
+    follows_word_id INT NOT NULL,
+
+    -- Number of times follows_word appears immediately after word
+    follow_count INT NOT NULL DEFAULT 0,
+
+    -- Composite primary key ensures uniqueness
+    PRIMARY KEY (word_id, follows_word_id),
+
+    FOREIGN KEY (word_id)
+        REFERENCES words(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (follows_word_id)
+        REFERENCES words(id)
+        ON DELETE CASCADE
+);
+
 -- End of code by Luke
