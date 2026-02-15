@@ -1,9 +1,14 @@
-# Code created by Omesh Sana
+ -- Code created by Omesh Sana
 
 CREATE DATABASE sentence_builder;
 USE sentence_builder;
 
+-- Code created by Luke
+DROP TABLE IF EXISTS word_follows;
+DROP TABLE IF EXISTS words;
+DROP TABLE IF EXISTS files;
 
+-- Code created by Luke
 CREATE TABLE words (
     word_id        INT 				AUTO_INCREMENT 	PRIMARY KEY,
     word_text      VARCHAR(100) 	NOT NULL 		UNIQUE,
@@ -14,6 +19,7 @@ CREATE TABLE words (
     last_seen_at   DATETIME 		NULL
 );
 
+-- Code created by Luke
 CREATE TABLE files (
     file_id        INT 				AUTO_INCREMENT 	PRIMARY KEY,
     file_name      VARCHAR(255) 	NOT NULL,
@@ -25,6 +31,7 @@ CREATE TABLE files (
     UNIQUE (file_name, file_path)
 );
 
+ -- Code created by Omesh Sana
 CREATE TABLE word_file_stats (
     word_id        INT 				NOT NULL,
     file_id        INT 				NOT NULL,
@@ -37,6 +44,7 @@ CREATE TABLE word_file_stats (
     FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
 );
 
+-- Code created by Luke
 CREATE TABLE next_word (
     from_word_id     		INT 			NOT NULL,
     to_word_id       		INT 			NOT NULL,
@@ -51,6 +59,7 @@ CREATE TABLE next_word (
         ON DELETE CASCADE
 );
 
+ -- Code created by Omesh Sana
 CREATE TABLE generated_sentences (
     sentence_id     	INT 			AUTO_INCREMENT 	PRIMARY KEY,
     sentence_text   	TEXT 			NOT NULL,
@@ -63,6 +72,7 @@ CREATE TABLE generated_sentences (
         ON DELETE SET NULL
 );
 
+ -- Code created by Omesh Sana
 CREATE TABLE user_input_words (
     user_word_id  		INT 			AUTO_INCREMENT 	PRIMARY KEY,
     word_id       		INT				NOT NULL,
