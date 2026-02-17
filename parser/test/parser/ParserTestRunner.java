@@ -14,6 +14,8 @@ import java.nio.file.Path;
 public class ParserTestRunner {
     private static final String SIMPLE_CASE = "simple";
     private static final String EDGE_CASE = "edge";
+    // Shriram Janardhan: Added paragraph test case constant
+    private static final String PARAGRAPH_CASE = "paragraph";
 
     public static void main(String[] args) {
         String testCase = args.length > 0 ? args[0].toLowerCase() : SIMPLE_CASE;
@@ -26,8 +28,13 @@ public class ParserTestRunner {
                 case EDGE_CASE:
                     runEdgeCase();
                     break;
+                // Shriram Janardhan: Paragraph case branch
+                case PARAGRAPH_CASE:
+                    runParagraphCase();
+                    break;
                 default:
-                    System.out.println("FAIL: Unknown test case '" + testCase + "'. Use 'simple' or 'edge'.");
+                    // Shriram Janardhan: Updated to include paragraph option
+                    System.out.println("FAIL: Unknown test case '" + testCase + "'. Use 'simple', 'edge', or 'paragraph'.");
                     System.exit(1);
             }
         } catch (IOException e) {
@@ -45,6 +52,8 @@ public class ParserTestRunner {
 
         assertEquals("simple totalWords", 8, result.getTotalWords());
         assertEquals("simple totalSentences", 3, result.getTotalSentences());
+        // Shriram Janardhan: Assert paragraph count
+        assertEquals("simple totalParagraphs", 1, result.getTotalParagraphs());
         assertCount("simple wordCounts[hello]", result.getWordCounts(), "hello", 2);
         assertCount("simple sentenceStartCounts[hello]", result.getSentenceStartCounts(), "hello", 2);
         assertCount("simple sentenceEndCounts[test]", result.getSentenceEndCounts(), "test", 1);
@@ -59,6 +68,8 @@ public class ParserTestRunner {
 
         assertEquals("edge totalWords", 11, result.getTotalWords());
         assertEquals("edge totalSentences", 5, result.getTotalSentences());
+        // Shriram Janardhan: Assert paragraph count
+        assertEquals("edge totalParagraphs", 1, result.getTotalParagraphs());
         assertCount("edge wordCounts[don't]", result.getWordCounts(), "don't", 1);
         assertCount("edge wordCounts[mother-in-law]", result.getWordCounts(), "mother-in-law", 1);
         assertCount("edge sentenceStartCounts[well]", result.getSentenceStartCounts(), "well", 1);
@@ -70,6 +81,17 @@ public class ParserTestRunner {
 
         System.out.println("PASS: edge test case");
     }
+
+    // Shriram Janardhan: Tests paragraph counting (streaming parser)
+    private static void runParagraphCase() throws IOException {
+        TextParser parser = new TextParser();
+        ParseResult result = parser.parse(Path.of("sample_texts/paragraphs.txt"));
+        assertEquals("paragraph totalParagraphs", 2, result.getTotalParagraphs());
+        assertEquals("paragraph totalWords", 9, result.getTotalWords());
+        assertEquals("paragraph totalSentences", 4, result.getTotalSentences());
+        System.out.println("PASS: paragraph test case");
+    }
+    // End of code by Shriram Janardhan (paragraph test, assertions)
 
     private static void assertEquals(String label, int expected, int actual) {
         if (expected != actual) {

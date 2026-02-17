@@ -71,6 +71,8 @@ public class Main {
         sb.append("    \"fileName\": \"").append(escapeJson(result.getFileName())).append("\",\n");
         sb.append("    \"totalWords\": ").append(result.getTotalWords()).append(",\n");
         sb.append("    \"totalSentences\": ").append(result.getTotalSentences()).append(",\n");
+        // Shriram Janardhan: Include totalParagraphs in JSON output
+        sb.append("    \"totalParagraphs\": ").append(result.getTotalParagraphs()).append(",\n");
         sb.append("    \"importedAt\": \"").append(result.getImportedAt()).append("\"\n");
         sb.append("  },\n");
         sb.append("  \"wordCounts\": ");

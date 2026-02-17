@@ -1,6 +1,8 @@
 package parser;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -37,18 +39,19 @@ public class TextParser {
         }
         // ----------------------------------------------------------------------
 
-        String rawText = Files.readString(file);
-        List<String> tokens = tokenizer.tokenize(rawText); // Breaks text into tokens using tokenizer class
+        // Shriram Janardhan: Streaming parser - uses BufferedReader to avoid loading full file into memory
+        Tokenizer.StreamResult streamResult;
+        try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            streamResult = tokenizer.tokenizeStreaming(reader);
+        }
+        List<String> tokens = streamResult.tokens;
+        // -----------------------------------------------------------------------
 
         ParseResult result = new ParseResult();
         result.setFileName(file.getFileName().toString());
         result.setImportedAt(Instant.now());
-
-        // Sammy Pandey: For total paragraph count --------------------------------
-        String[] paragraphs = rawText.split("\\n\\s*\\n");
-        int paragraphCount = paragraphs.length;
-        result.setTotalParagraphs(paragraphCount);
-        // ------------------------------------------------------------------------
+        // Shriram Janardhan: Paragraph count from streaming tokenizer
+        result.setTotalParagraphs(streamResult.paragraphCount);
 
         String previousWord = null;
         String lastWordInSentence = null;
@@ -64,13 +67,11 @@ public class TextParser {
 
         // Going through each token
         for (String token : tokens) {
-            // Sammy Pandey: Showing progress every 5000 tokens --------------
-            // or could display it more often?
+            // Shriram Janardhan: Progress bar - visual indicator for large files
             processedTokens++;
             if (processedTokens % 5000 == 0) {
-                System.out.println("Processed " + processedTokens + " / " + totalTokens + " tokens...");
+                printProgressBar(processedTokens, totalTokens);
             }
-            // ! Might change this to a progress bar later
             // ----------------------------------------------------------------
 
             // CASE 1: Sentence Boundary
@@ -124,5 +125,19 @@ public class TextParser {
         result.setTotalSentences(totalSentences);
         return result;
     }
+
+    // Shriram Janardhan: Renders progress bar e.g. [##########----------] 50%
+    private static void printProgressBar(int current, int total) {
+        final int width = 40;
+        int pct = (total > 0) ? (current * 100 / total) : 0;
+        int filled = (total > 0) ? (current * width / total) : 0;
+        StringBuilder sb = new StringBuilder();
+        sb.append("\r[");
+        for (int i = 0; i < width; i++) sb.append(i < filled ? '#' : '-');
+        sb.append("] ").append(pct).append("%");
+        System.out.print(sb);
+        if (current >= total) System.out.println();
+    }
 }
+// End of code by Shriram Janardhan (streaming, progress bar)
 // End of Code by Archisha Sasson

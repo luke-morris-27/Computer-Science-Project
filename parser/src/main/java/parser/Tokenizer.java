@@ -1,5 +1,7 @@
 package parser;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -74,7 +76,57 @@ public class Tokenizer {
         tokens.add(currentWord.toString()); // Add completed word to list
         currentWord.setLength(0); // Clear current counter
     }
-}
 
+    // Shriram Janardhan: Streaming overload - reads from Reader to avoid loading full file into memory
+    public static class StreamResult {
+        public final List<String> tokens;
+        public final int paragraphCount;
+        public StreamResult(List<String> tokens, int paragraphCount) {
+            this.tokens = tokens;
+            this.paragraphCount = paragraphCount;
+        }
+    }
+
+    public StreamResult tokenizeStreaming(Reader reader) throws IOException {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder currentWord = new StringBuilder();
+        boolean inBoundaryRun = false;
+        int paragraphCount = 1;
+        boolean afterNewline = false;
+        int ch;
+        while ((ch = reader.read()) != -1) {
+            char c = (char) ch;
+            if (c == '\n') {
+                if (afterNewline) paragraphCount++;
+                afterNewline = true;
+                flushWord(tokens, currentWord);
+                inBoundaryRun = false;
+                continue;
+            }
+            if (Character.isWhitespace(c)) {
+                flushWord(tokens, currentWord);
+                continue;
+            }
+            afterNewline = false;
+            if (isWordChar(c)) {
+                currentWord.append(c);
+                inBoundaryRun = false;
+                continue;
+            }
+            flushWord(tokens, currentWord);
+            if (SentenceBoundary.isSentenceEndingChar(c)) {
+                if (!inBoundaryRun) {
+                    tokens.add(SENTENCE_BOUNDARY);
+                    inBoundaryRun = true;
+                }
+            } else {
+                inBoundaryRun = false;
+            }
+        }
+        flushWord(tokens, currentWord);
+        return new StreamResult(tokens, paragraphCount);
+    }
+}
+// End of code by Shriram Janardhan (StreamResult, tokenizeStreaming)
 // End of Code by Archisha Sasson
 
