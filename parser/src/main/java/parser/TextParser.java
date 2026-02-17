@@ -13,6 +13,7 @@ import java.util.List;
  * normalizing, and building ParseResult statistics.
  */
 // Code by Archisha Sasson
+
 public class TextParser {
     private final Tokenizer tokenizer;
     private final Normalizer normalizer;
@@ -27,14 +28,14 @@ public class TextParser {
     }
 
     public ParseResult parse(Path file) throws IOException {
-        // Sammy Pandey: Added input validation ---------------------
+        // Sammy Pandey: Added input validation --------------------------------
         if (!Files.exists(file)) {
             throw new IOException("File not found: " + file);
         }
         if (!Files.isRegularFile(file)) {
             throw new IOException("Not a regular file: " + file);
         }
-        // ------------------------------------------------------------
+        // ----------------------------------------------------------------------
 
         String rawText = Files.readString(file);
         List<String> tokens = tokenizer.tokenize(rawText); // Breaks text into tokens using tokenizer class
@@ -42,6 +43,12 @@ public class TextParser {
         ParseResult result = new ParseResult();
         result.setFileName(file.getFileName().toString());
         result.setImportedAt(Instant.now());
+
+        // Sammy Pandey: For total paragraph count --------------------------------
+        String[] paragraphs = rawText.split("\\n\\s*\\n");
+        int paragraphCount = paragraphs.length;
+        result.setTotalParagraphs(paragraphCount);
+        // ------------------------------------------------------------------------
 
         String previousWord = null;
         String lastWordInSentence = null;

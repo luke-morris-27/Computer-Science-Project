@@ -42,6 +42,7 @@ public class ParseResult {
     private int totalWords;
     private int totalSentences;
     private Instant importedAt;
+    private int totalParagraphs; // Sammy Pandey: for paragraph counter
 
     public Map<String, Integer> getWordCounts() {
         return wordCounts;
@@ -78,6 +79,16 @@ public class ParseResult {
     public int getTotalSentences() {
         return totalSentences;
     }
+
+    // Sammy Pandey: for total paragraph counter -------------------------
+    public int getTotalParagraphs() {
+        return totalParagraphs;
+    }
+
+    public void setTotalParagraphs(int totalParagraphs) {
+        this.totalParagraphs = totalParagraphs;
+    }
+    // --------------------------------------------------------------------
 
     public void setTotalSentences(int totalSentences) {
         this.totalSentences = totalSentences;

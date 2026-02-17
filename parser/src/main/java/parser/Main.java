@@ -43,6 +43,9 @@ public class Main {
         System.out.println("Imported at: " + result.getImportedAt());
         System.out.println("Total words: " + result.getTotalWords());
         System.out.println("Total sentences: " + result.getTotalSentences());
+        // Sammy Pandey: total paragraph counter: -----------------------------------
+        System.out.println("Total paragraphs: " + result.getTotalParagraphs());
+        // --------------------------------------------------------------------------
         System.out.println("Unique words: " + result.getWordCounts().size());
     }
 
