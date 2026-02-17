@@ -27,8 +27,17 @@ public class TextParser {
     }
 
     public ParseResult parse(Path file) throws IOException {
+        // Sammy Pandey: Added input validation ---------------------
+        if (!Files.exists(file)) {
+            throw new IOException("File not found: " + file);
+        }
+        if (!Files.isRegularFile(file)) {
+            throw new IOException("Not a regular file: " + file);
+        }
+        // ------------------------------------------------------------
+
         String rawText = Files.readString(file);
-        List<String> tokens = tokenizer.tokenize(rawText);
+        List<String> tokens = tokenizer.tokenize(rawText); // Breaks text into tokens using tokenizer class
 
         ParseResult result = new ParseResult();
         result.setFileName(file.getFileName().toString());
@@ -41,12 +50,29 @@ public class TextParser {
         int totalWords = 0;
         int totalSentences = 0;
 
+        // Sammy Pandey: Progress tracking -------------------
+        int totalTokens = tokens.size();
+        int processedTokens = 0;
+        // ----------------------------------------------------
+
+        // Going through each token
         for (String token : tokens) {
-            if (SentenceBoundary.isSentenceBoundaryToken(token)) {
-                if (sentenceHasWords && lastWordInSentence != null) {
-                    result.incrementSentenceEndCount(lastWordInSentence);
-                    totalSentences++;
+            // Sammy Pandey: Showing progress every 5000 tokens --------------
+            // or could display it more often?
+            processedTokens++;
+            if (processedTokens % 5000 == 0) {
+                System.out.println("Processed " + processedTokens + " / " + totalTokens + " tokens...");
+            }
+            // ! Might change this to a progress bar later
+            // ----------------------------------------------------------------
+
+            // CASE 1: Sentence Boundary
+            if (SentenceBoundary.isSentenceBoundaryToken(token)) { // If we hit punctuation,
+                if (sentenceHasWords && lastWordInSentence != null) { // and sentence actually has words,
+                    result.incrementSentenceEndCount(lastWordInSentence); // then mark last word as a sentence ender,
+                    totalSentences++; // and count this as a sentemce
                 }
+                // Restarting these for next sequence
                 expectingSentenceStart = true;
                 sentenceHasWords = false;
                 lastWordInSentence = null;
@@ -54,11 +80,17 @@ public class TextParser {
                 continue;
             }
 
+            // CASE 2: Regualar Word
             String word = normalizer.normalize(token);
-            if (word.isEmpty()) {
+            if (word.isEmpty()) { // If normalizer returns emtpy, it was all punctuation, so skip
                 continue;
             }
 
+            // Sammy Pandey: To track average word length --------------------------------
+            result.addCharacters(word.length()); // Adding to the total chars
+            // ---------------------------------------------------------------------------
+
+            //Count this word
             result.incrementWordCount(word);
             totalWords++;
 
