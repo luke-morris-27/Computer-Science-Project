@@ -129,8 +129,16 @@ public class TextParser {
     // Shriram Janardhan: Renders progress bar e.g. [##########----------] 50%
     private static void printProgressBar(int current, int total) {
         final int width = 40;
-        int pct = (total > 0) ? (current * 100 / total) : 0;
-        int filled = (total > 0) ? (current * width / total) : 0;
+        // Use long arithmetic to avoid integer overflow for very large files
+        long cur = current;
+        long tot = total;
+
+        int pct = 0;
+        int filled = 0;
+        if (tot > 0) {
+            pct = (int) Math.min(100, Math.max(0, (cur * 100L) / tot));
+            filled = (int) Math.min(width, Math.max(0, (cur * width) / tot));
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("\r[");
         for (int i = 0; i < width; i++) sb.append(i < filled ? '#' : '-');
