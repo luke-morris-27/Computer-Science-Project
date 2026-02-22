@@ -26,5 +26,12 @@ bin/
 ### VS Code ###
 .vscode/
 
+### Maven / Project Artifacts ###
+/target/
+*.log
+*.iml
+.idea/
+
 ### Mac OS ###
-.DS_Storeparser/big_inputs/
+.DS_Store
+parser/big_inputs/

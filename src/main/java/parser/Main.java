@@ -50,13 +50,7 @@ public class Main {
     }
 
     private static Path resolveOutputPath() {
-        if (Files.isDirectory(Path.of("src", "main", "java"))) {
-            return Path.of("output", "parse_result.json");
-        }
-        if (Files.isDirectory(Path.of("parser", "src", "main", "java"))) {
-            return Path.of("parser", "output", "parse_result.json");
-        }
-        return Path.of("output", "parse_result.json");
+        return Path.of("target", "parse_result.json");
     }
 
     private static void writeJson(ParseResult result, Path outputPath) throws IOException {
