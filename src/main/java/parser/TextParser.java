@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -65,55 +67,63 @@ public class TextParser {
         int processedTokens = 0;
         // ----------------------------------------------------
 
-        // Going through each token
-        for (String token : tokens) {
-            // Shriram Janardhan: Progress bar - visual indicator for large files
-            processedTokens++;
-            if (processedTokens % 5000 == 0) {
-                printProgressBar(processedTokens, totalTokens);
-            }
-            // ----------------------------------------------------------------
-
-            // CASE 1: Sentence Boundary
-            if (SentenceBoundary.isSentenceBoundaryToken(token)) { // If we hit punctuation,
-                if (sentenceHasWords && lastWordInSentence != null) { // and sentence actually has words,
-                    result.incrementSentenceEndCount(lastWordInSentence); // then mark last word as a sentence ender,
-                    totalSentences++; // and count this as a sentemce
+        // Shriram Janardhan: Database-backed unique word storage (MySQL)
+        try (Connection conn = WordDb.openConnection()) {
+            // Going through each token
+            for (String token : tokens) {
+                // Shriram Janardhan: Progress bar - visual indicator for large files
+                processedTokens++;
+                if (processedTokens % 5000 == 0) {
+                    printProgressBar(processedTokens, totalTokens);
                 }
-                // Restarting these for next sequence
-                expectingSentenceStart = true;
-                sentenceHasWords = false;
-                lastWordInSentence = null;
-                previousWord = null;
-                continue;
+                // ----------------------------------------------------------------
+
+                // CASE 1: Sentence Boundary
+                if (SentenceBoundary.isSentenceBoundaryToken(token)) { // If we hit punctuation,
+                    if (sentenceHasWords && lastWordInSentence != null) { // and sentence actually has words,
+                        result.incrementSentenceEndCount(lastWordInSentence); // then mark last word as a sentence ender,
+                        totalSentences++; // and count this as a sentemce
+                    }
+                    // Restarting these for next sequence
+                    expectingSentenceStart = true;
+                    sentenceHasWords = false;
+                    lastWordInSentence = null;
+                    previousWord = null;
+                    continue;
+                }
+
+                // CASE 2: Regualar Word
+                String word = normalizer.normalize(token);
+                if (word.isEmpty()) { // If normalizer returns emtpy, it was all punctuation, so skip
+                    continue;
+                }
+
+                // Ensure word exists in DB and reuse word_id for repeats
+                WordDb.getOrCreateWordId(word, conn);
+
+                // Sammy Pandey: To track average word length --------------------------------
+                result.addCharacters(word.length()); // Adding to the total chars
+                // ---------------------------------------------------------------------------
+
+                //Count this word
+                result.incrementWordCount(word);
+                totalWords++;
+
+                if (expectingSentenceStart) {
+                    result.incrementSentenceStartCount(word);
+                    expectingSentenceStart = false;
+                }
+
+                if (previousWord != null) {
+                    result.incrementNextWordCount(previousWord, word);
+                }
+
+                previousWord = word;
+                lastWordInSentence = word;
+                sentenceHasWords = true;
             }
-
-            // CASE 2: Regualar Word
-            String word = normalizer.normalize(token);
-            if (word.isEmpty()) { // If normalizer returns emtpy, it was all punctuation, so skip
-                continue;
-            }
-
-            // Sammy Pandey: To track average word length --------------------------------
-            result.addCharacters(word.length()); // Adding to the total chars
-            // ---------------------------------------------------------------------------
-
-            //Count this word
-            result.incrementWordCount(word);
-            totalWords++;
-
-            if (expectingSentenceStart) {
-                result.incrementSentenceStartCount(word);
-                expectingSentenceStart = false;
-            }
-
-            if (previousWord != null) {
-                result.incrementNextWordCount(previousWord, word);
-            }
-
-            previousWord = word;
-            lastWordInSentence = word;
-            sentenceHasWords = true;
+        } catch (SQLException e) {
+            throw new IOException("Failed to store words in database: " + e.getMessage(), e);
         }
 
         if (sentenceHasWords && lastWordInSentence != null) {
@@ -147,5 +157,5 @@ public class TextParser {
         if (current >= total) System.out.println();
     }
 }
-// End of code by Shriram Janardhan (streaming, progress bar)
+// End of code by Shriram Janardhan (streaming, progress bar, database-backed word storage)
 // End of Code by Archisha Sasson
