@@ -75,7 +75,7 @@ public class TextParser {
         // ----------------------------------------------------
 
         // Sammy Pandey 2/27: DB wiring for next_word + start/end counts --------------------------
-        try (Connection conn = Db.connect()) { // Sammy Pandey 2/27
+        try (Connection conn = WordDb.openConnection()) { // Sammy Pandey 2/27
             conn.setAutoCommit(false); // Sammy Pandey 2/27
 
             WordDao wordDao = new WordDao(conn); // Sammy Pandey 2/27
