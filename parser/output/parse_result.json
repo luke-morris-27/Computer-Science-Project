@@ -1,0 +1,42 @@
+{
+  "fileMeta": {
+    "fileName": "simple.txt",
+    "totalWords": 8,
+    "totalSentences": 3,
+    "totalParagraphs": 1,
+    "importedAt": "2026-02-17T19:09:17.123966200Z"
+  },
+  "wordCounts": {
+    "hello": 2,
+    "world": 1,
+    "this": 1,
+    "is": 1,
+    "a": 1,
+    "test": 1,
+    "again": 1
+  },
+  "sentenceStartCounts": {
+    "hello": 2,
+    "this": 1
+  },
+  "sentenceEndCounts": {
+    "world": 1,
+    "test": 1,
+    "again": 1
+  },
+  "nextWordCounts": {
+    "hello": {
+      "world": 1,
+      "again": 1
+    },
+    "this": {
+      "is": 1
+    },
+    "is": {
+      "a": 1
+    },
+    "a": {
+      "test": 1
+    }
+  }
+}
