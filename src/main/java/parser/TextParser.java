@@ -5,16 +5,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-import db.Db;
 import db.NextWordDao;
 import db.WordCountsDao;
-import db.WordDao;
-
-import java.sql.Connection;
-import java.sql.SQLException;
 
 /*
  * Class: TextParser
@@ -63,141 +60,153 @@ public class TextParser {
 
         String previousWord = null;
         String lastWordInSentence = null;
-        Integer lastWordIdInSentence = null; // Sammy Pandey 2/27
+
         boolean expectingSentenceStart = true;
         boolean sentenceHasWords = false;
+
         int totalWords = 0;
         int totalSentences = 0;
 
-        // Sammy Pandey: Progress tracking -------------------
+        // Shriram Janardhan: Progress bar - visual indicator for large files
         int totalTokens = tokens.size();
         int processedTokens = 0;
-        // ----------------------------------------------------
 
-        // Sammy Pandey 2/27: DB wiring for next_word + start/end counts --------------------------
-        try (Connection conn = WordDb.openConnection()) { // Sammy Pandey 2/27
-            conn.setAutoCommit(false); // Sammy Pandey 2/27
+        // Sammy Pandey: DB state tracking (word IDs + sentence state) ----------------------------
+        Integer prevWordId = null;
+        Integer sentenceStartWordId = null;
+        Integer lastWordIdInSentence = null;
 
-            WordDao wordDao = new WordDao(conn); // Sammy Pandey 2/27
-            WordCountsDao countsDao = new WordCountsDao(conn); // Sammy Pandey 2/27
-            NextWordDao nextWordDao = new NextWordDao(conn); // Sammy Pandey 2/27
+        // Sammy Pandey: Track last transition so we can mark precedes_sentence_end at boundary time
+        Integer lastFromId = null;
+        Integer lastToId = null;
+        // --------------------------------------------------------------------------------------
 
-            Integer prevWordId = null; // Sammy Pandey 2/27
-            Integer sentenceStartWordId = null; // Sammy Pandey 2/27
+        // Shriram Janardhan: Database-backed unique word storage (MySQL) via WordDb.openConnection()
+        // Sammy Pandey: DB wiring for next_word + start/end counts (uses Shriram's word_id lookups)
+        try (Connection conn = WordDb.openConnection()) {
+            // Sammy Pandey: Use a single transaction for this import
+            conn.setAutoCommit(false);
 
-            // Sammy Pandey 2/27: track last transition so we can mark precedes_sentence_end
-            Integer lastFromId = null; // Sammy Pandey 2/27
-            Integer lastToId = null;   // Sammy Pandey 2/27
+            // Sammy Pandey: DAOs for start/end counts + transitions
+            WordCountsDao countsDao = new WordCountsDao(conn);
+            NextWordDao nextWordDao = new NextWordDao(conn);
 
             // Going through each token
             for (String token : tokens) {
-                // Shriram Janardhan: Progress bar - visual indicator for large files
+                // Shriram Janardhan: Progress bar updates
                 processedTokens++;
                 if (processedTokens % 5000 == 0) {
                     printProgressBar(processedTokens, totalTokens);
                 }
-                // ----------------------------------------------------------------
 
                 // CASE 1: Sentence Boundary
-                if (SentenceBoundary.isSentenceBoundaryToken(token)) { // If we hit punctuation,
-                    if (sentenceHasWords && lastWordInSentence != null) { // and sentence actually has words,
-                        result.incrementSentenceEndCount(lastWordInSentence); // then mark last word as a sentence ender,
-                        if (lastWordIdInSentence != null) { // Sammy Pandey 2/27
-                            countsDao.incEnd(lastWordIdInSentence); // Sammy Pandey 2/27
+                if (SentenceBoundary.isSentenceBoundaryToken(token)) { // Code by Archisha Sasson
+                    if (sentenceHasWords && lastWordInSentence != null) { // Code by Archisha Sasson
+                        result.incrementSentenceEndCount(lastWordInSentence); // Code by Archisha Sasson
+                        totalSentences++; // Code by Archisha Sasson
+
+                        // Sammy Pandey: DB end_count increments for last word in sentence
+                        if (lastWordIdInSentence != null) {
+                            countsDao.incEnd(lastWordIdInSentence);
                         }
 
-                        // Sammy Pandey 2/27: mark last transition in this sentence as precedes_sentence_end
-                        if (lastFromId != null && lastToId != null) { // Sammy Pandey 2/27
-                            nextWordDao.markPrecedesEnd(lastFromId, lastToId); // Sammy Pandey 2/27
+                        // Sammy Pandey: mark last transition as precedes_sentence_end
+                        if (lastFromId != null && lastToId != null) {
+                            nextWordDao.markPrecedesEnd(lastFromId, lastToId);
                         }
-
-                        totalSentences++; // and count this as a sentemce
                     }
-                    // Restarting these for next sequence
-                    expectingSentenceStart = true;
-                    sentenceHasWords = false;
-                    lastWordInSentence = null;
-                    lastWordIdInSentence = null; // Sammy Pandey 2/27
-                    previousWord = null;
 
-                    prevWordId = null; // Sammy Pandey 2/27
-                    sentenceStartWordId = null; // Sammy Pandey 2/27
+                    // Reset for next sentence (Archisha Sasson base logic + Sammy ID resets)
+                    expectingSentenceStart = true; // Code by Archisha Sasson
+                    sentenceHasWords = false;      // Code by Archisha Sasson
 
-                    lastFromId = null; // Sammy Pandey 2/27
-                    lastToId = null;   // Sammy Pandey 2/27
+                    previousWord = null; // Code by Archisha Sasson
+                    prevWordId = null;   // Sammy Pandey
+
+                    lastWordInSentence = null;   // Code by Archisha Sasson
+                    lastWordIdInSentence = null; // Sammy Pandey
+
+                    sentenceStartWordId = null; // Sammy Pandey
+                    lastFromId = null;          // Sammy Pandey
+                    lastToId = null;            // Sammy Pandey
                     continue;
                 }
 
-                // CASE 2: Regualar Word
-                String word = normalizer.normalize(token);
-                if (word.isEmpty()) { // If normalizer returns emtpy, it was all punctuation, so skip
+                // CASE 2: Regular Word
+                String word = normalizer.normalize(token); // Code by Archisha Sasson (normalization)
+                if (word.isEmpty()) { // Code by Archisha Sasson
                     continue;
                 }
 
-                int wordId = wordDao.getOrCreateWordId(word); // Sammy Pandey 2/27
+                // Shriram Janardhan: Ensure word exists in DB and get its ID (unique word storage)
+                int wordId = WordDb.getOrCreateWordId(word, conn);
 
-                // Sammy Pandey: To track average word length --------------------------------
-                result.addCharacters(word.length()); // Adding to the total chars
-                // ---------------------------------------------------------------------------
+                // Sammy Pandey: Track average word length (ParseResult extension)
+                result.addCharacters(word.length());
 
-                // Count this word
-                result.incrementWordCount(word);
-                totalWords++;
+                // Count word (Archisha Sasson base logic)
+                result.incrementWordCount(word); // Code by Archisha Sasson
+                totalWords++;                    // Code by Archisha Sasson
 
+                // Sentence start handling
                 if (expectingSentenceStart) {
-                    result.incrementSentenceStartCount(word);
-                    expectingSentenceStart = false;
+                    result.incrementSentenceStartCount(word); // Code by Archisha Sasson
+                    expectingSentenceStart = false;          // Code by Archisha Sasson
 
-                    countsDao.incStart(wordId); // Sammy Pandey 2/27
-                    sentenceStartWordId = wordId; // Sammy Pandey 2/27
+                    // Sammy Pandey: DB start_count increments
+                    countsDao.incStart(wordId);
+                    sentenceStartWordId = wordId;
                 }
 
+                // In-memory transition map (Archisha Sasson base logic)
                 if (previousWord != null) {
-                    result.incrementNextWordCount(previousWord, word);
+                    result.incrementNextWordCount(previousWord, word); // Code by Archisha Sasson
                 }
 
-                // Sammy Pandey 2/27: DB transition upsert (frequency increments correctly)
-                if (prevWordId != null) { // Sammy Pandey 2/27
+                // Sammy Pandey: DB transition upsert + frequency increments
+                if (prevWordId != null) {
                     boolean followsStart =
-                            (sentenceStartWordId != null && prevWordId.equals(sentenceStartWordId)); // Sammy Pandey 2/27
+                        (sentenceStartWordId != null && prevWordId.equals(sentenceStartWordId));
 
-                    // NOTE: precedes_sentence_end is marked at boundary time (see above)
-                    nextWordDao.increment(prevWordId, wordId, followsStart, false); // Sammy Pandey 2/27
+                    // precedes_sentence_end is marked when we hit boundary (above)
+                    nextWordDao.increment(prevWordId, wordId, followsStart, false);
 
-                    // Remember last transition inside the current sentence
-                    lastFromId = prevWordId; // Sammy Pandey 2/27
-                    lastToId = wordId;       // Sammy Pandey 2/27
+                    // remember last transition inside current sentence
+                    lastFromId = prevWordId;
+                    lastToId = wordId;
                 }
-                // -------------------------------------------------------
 
-                previousWord = word;
-                prevWordId = wordId; // Sammy Pandey 2/27
-                lastWordInSentence = word;
-                lastWordIdInSentence = wordId; // Sammy Pandey 2/27
-                sentenceHasWords = true;
+                // Update trackers (Archisha base + Sammy IDs)
+                previousWord = word; // Code by Archisha Sasson
+                prevWordId = wordId; // Sammy Pandey
+
+                lastWordInSentence = word;       // Code by Archisha Sasson
+                lastWordIdInSentence = wordId;   // Sammy Pandey
+
+                sentenceHasWords = true; // Code by Archisha Sasson
             }
 
             // If file ends without a <SENTENCE_BOUNDARY>, count the last sentence too
-            if (sentenceHasWords && lastWordInSentence != null) {
-                result.incrementSentenceEndCount(lastWordInSentence);
+            if (sentenceHasWords && lastWordInSentence != null) { // Code by Archisha Sasson
+                result.incrementSentenceEndCount(lastWordInSentence); // Code by Archisha Sasson
+                totalSentences++; // Code by Archisha Sasson
 
-                if (lastWordIdInSentence != null) { // Sammy Pandey 2/27
-                    countsDao.incEnd(lastWordIdInSentence); // Sammy Pandey 2/27
+                // Sammy Pandey: DB end_count for final sentence
+                if (lastWordIdInSentence != null) {
+                    countsDao.incEnd(lastWordIdInSentence);
                 }
 
-                // Sammy Pandey 2/27: mark last transition of final sentence as precedes_sentence_end
-                if (lastFromId != null && lastToId != null) { // Sammy Pandey 2/27
-                    nextWordDao.markPrecedesEnd(lastFromId, lastToId); // Sammy Pandey 2/27
+                // Sammy Pandey: mark last transition of final sentence as precedes_sentence_end
+                if (lastFromId != null && lastToId != null) {
+                    nextWordDao.markPrecedesEnd(lastFromId, lastToId);
                 }
-
-                totalSentences++;
             }
 
-            conn.commit(); // Sammy Pandey 2/27
+            // Sammy Pandey: Commit DB transaction
+            conn.commit();
         } catch (SQLException e) {
-            throw new IOException("DB error: " + e.getMessage(), e); // Sammy Pandey 2/27
+            throw new IOException("DB error: " + e.getMessage(), e); // Sammy Pandey
         }
-        // ----------------------------------------------------------------------------------------
 
         result.setTotalWords(totalWords);
         result.setTotalSentences(totalSentences);
@@ -207,7 +216,6 @@ public class TextParser {
     // Shriram Janardhan: Renders progress bar e.g. [##########----------] 50%
     private static void printProgressBar(int current, int total) {
         final int width = 40;
-        // Use long arithmetic to avoid integer overflow for very large files
         long cur = current;
         long tot = total;
 
@@ -225,5 +233,3 @@ public class TextParser {
         if (current >= total) System.out.println();
     }
 }
-// End of code by Shriram Janardhan (streaming, progress bar)
-// End of Code by Archisha Sasson
