@@ -1,0 +1,131 @@
+{
+  "fileMeta": {
+<<<<<<< HEAD
+    "fileName": "simple.txt",
+    "totalWords": 8,
+    "totalSentences": 3,
+    "totalParagraphs": 1,
+    "importedAt": "2026-02-17T19:09:17.123966200Z"
+  },
+  "wordCounts": {
+    "hello": 2,
+    "world": 1,
+    "this": 1,
+    "is": 1,
+    "a": 1,
+    "test": 1,
+    "again": 1
+  },
+  "sentenceStartCounts": {
+    "hello": 2,
+    "this": 1
+  },
+  "sentenceEndCounts": {
+    "world": 1,
+    "test": 1,
+    "again": 1
+  },
+  "nextWordCounts": {
+    "hello": {
+      "world": 1,
+      "again": 1
+    },
+    "this": {
+      "is": 1
+    },
+    "is": {
+      "a": 1
+    },
+    "a": {
+      "test": 1
+=======
+    "fileName": "huge.txt",
+    "totalWords": 38000000,
+    "totalSentences": 4000000,
+    "totalParagraphs": 1,
+    "importedAt": "2026-02-17T18:54:51.520993Z"
+  },
+  "wordCounts": {
+    "this": 2000000,
+    "is": 2000000,
+    "a": 2000000,
+    "sample": 2000000,
+    "sentence": 2000000,
+    "it": 2000000,
+    "will": 2000000,
+    "be": 2000000,
+    "repeated": 2000000,
+    "many": 2000000,
+    "times": 2000000,
+    "to": 2000000,
+    "test": 2000000,
+    "the": 2000000,
+    "parser": 2000000,
+    "performance": 2000000,
+    "and": 2000000,
+    "progress": 2000000,
+    "bar": 2000000
+  },
+  "sentenceStartCounts": {
+    "this": 2000000,
+    "it": 2000000
+  },
+  "sentenceEndCounts": {
+    "sentence": 2000000,
+    "bar": 2000000
+  },
+  "nextWordCounts": {
+    "this": {
+      "is": 2000000
+    },
+    "is": {
+      "a": 2000000
+    },
+    "a": {
+      "sample": 2000000
+    },
+    "sample": {
+      "sentence": 2000000
+    },
+    "it": {
+      "will": 2000000
+    },
+    "will": {
+      "be": 2000000
+    },
+    "be": {
+      "repeated": 2000000
+    },
+    "repeated": {
+      "many": 2000000
+    },
+    "many": {
+      "times": 2000000
+    },
+    "times": {
+      "to": 2000000
+    },
+    "to": {
+      "test": 2000000
+    },
+    "test": {
+      "the": 2000000
+    },
+    "the": {
+      "parser": 2000000
+    },
+    "parser": {
+      "performance": 2000000
+    },
+    "performance": {
+      "and": 2000000
+    },
+    "and": {
+      "progress": 2000000
+    },
+    "progress": {
+      "bar": 2000000
+>>>>>>> 3308d8a5846d074ad696f9c891980072863b566e
+    }
+  }
+}

@@ -3,7 +3,6 @@ package parser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 
 /*
  * Class: Main
@@ -43,17 +42,13 @@ public class Main {
         System.out.println("Imported at: " + result.getImportedAt());
         System.out.println("Total words: " + result.getTotalWords());
         System.out.println("Total sentences: " + result.getTotalSentences());
-        System.out.println("Unique words: " + result.getWordCounts().size());
+        // Sammy Pandey: total paragraph counter: -----------------------------------
+        System.out.println("Total paragraphs: " + result.getTotalParagraphs());
+        // --------------------------------------------------------------------------
     }
 
     private static Path resolveOutputPath() {
-        if (Files.isDirectory(Path.of("src", "main", "java"))) {
-            return Path.of("output", "parse_result.json");
-        }
-        if (Files.isDirectory(Path.of("parser", "src", "main", "java"))) {
-            return Path.of("parser", "output", "parse_result.json");
-        }
-        return Path.of("output", "parse_result.json");
+        return Path.of("target", "parse_result.json");
     }
 
     private static void writeJson(ParseResult result, Path outputPath) throws IOException {
@@ -61,6 +56,7 @@ public class Main {
         Files.writeString(outputPath, toJson(result));
     }
 
+    // Shriram Janardhan: JSON word storage removed; fileMeta only (words stored in DB)
     private static String toJson(ParseResult result) {
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
@@ -68,81 +64,15 @@ public class Main {
         sb.append("    \"fileName\": \"").append(escapeJson(result.getFileName())).append("\",\n");
         sb.append("    \"totalWords\": ").append(result.getTotalWords()).append(",\n");
         sb.append("    \"totalSentences\": ").append(result.getTotalSentences()).append(",\n");
+        // Shriram Janardhan: Include totalParagraphs in JSON output
+        sb.append("    \"totalParagraphs\": ").append(result.getTotalParagraphs()).append(",\n");
         sb.append("    \"importedAt\": \"").append(result.getImportedAt()).append("\"\n");
-        sb.append("  },\n");
-        sb.append("  \"wordCounts\": ");
-        appendIntMap(sb, result.getWordCounts(), 2);
-        sb.append(",\n");
-        sb.append("  \"sentenceStartCounts\": ");
-        appendIntMap(sb, result.getSentenceStartCounts(), 2);
-        sb.append(",\n");
-        sb.append("  \"sentenceEndCounts\": ");
-        appendIntMap(sb, result.getSentenceEndCounts(), 2);
-        sb.append(",\n");
-        sb.append("  \"nextWordCounts\": ");
-        appendNestedIntMap(sb, result.getNextWordCounts(), 2);
+        sb.append("  }\n");
         sb.append("\n");
         sb.append("}\n");
         return sb.toString();
     }
-
-    private static void appendIntMap(StringBuilder sb, Map<String, Integer> map, int indent) {
-        String indentText = " ".repeat(indent);
-        String childIndent = " ".repeat(indent + 2);
-        sb.append("{");
-
-        if (map.isEmpty()) {
-            sb.append("}");
-            return;
-        }
-
-        sb.append("\n");
-        int i = 0;
-        for (Map.Entry<String, Integer> entry : map.entrySet()) {
-            sb.append(childIndent)
-                .append("\"")
-                .append(escapeJson(entry.getKey()))
-                .append("\": ")
-                .append(entry.getValue());
-
-            if (++i < map.size()) {
-                sb.append(",");
-            }
-            sb.append("\n");
-        }
-        sb.append(indentText).append("}");
-    }
-
-    private static void appendNestedIntMap(
-        StringBuilder sb,
-        Map<String, Map<String, Integer>> map,
-        int indent
-    ) {
-        String indentText = " ".repeat(indent);
-        String childIndent = " ".repeat(indent + 2);
-        sb.append("{");
-
-        if (map.isEmpty()) {
-            sb.append("}");
-            return;
-        }
-
-        sb.append("\n");
-        int i = 0;
-        for (Map.Entry<String, Map<String, Integer>> entry : map.entrySet()) {
-            sb.append(childIndent)
-                .append("\"")
-                .append(escapeJson(entry.getKey()))
-                .append("\": ");
-            appendIntMap(sb, entry.getValue(), indent + 2);
-
-            if (++i < map.size()) {
-                sb.append(",");
-            }
-            sb.append("\n");
-        }
-        sb.append(indentText).append("}");
-    }
+    // End of code by Shriram Janardhan (JSON word storage removed)
 
     private static String escapeJson(String value) {
         if (value == null) {
