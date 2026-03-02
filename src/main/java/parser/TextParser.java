@@ -24,15 +24,25 @@ import db.WordCountsDao;
 public class TextParser {
     private final Tokenizer tokenizer;
     private final Normalizer normalizer;
+    // Code by Archisha Sasson
+    private final boolean databaseWritesEnabled;
+    // End of Code by Archisha Sasson
 
     public TextParser() {
-        this(new Tokenizer(), new Normalizer());
+        this(new Tokenizer(), new Normalizer(), true);
     }
 
     public TextParser(Tokenizer tokenizer, Normalizer normalizer) {
+        this(tokenizer, normalizer, true);
+    }
+
+    // Code by Archisha Sasson
+    public TextParser(Tokenizer tokenizer, Normalizer normalizer, boolean databaseWritesEnabled) {
         this.tokenizer = tokenizer;
         this.normalizer = normalizer;
+        this.databaseWritesEnabled = databaseWritesEnabled;
     }
+    // End of Code by Archisha Sasson
 
     public ParseResult parse(Path file) throws IOException {
         // Sammy Pandey: Added input validation --------------------------------
@@ -83,13 +93,16 @@ public class TextParser {
 
         // Shriram Janardhan: Database-backed unique word storage (MySQL) via WordDb.openConnection()
         // Sammy Pandey: DB wiring for next_word + start/end counts (uses Shriram's word_id lookups)
-        try (Connection conn = WordDb.openConnection()) {
+        // Code by Archisha Sasson
+        try (Connection conn = databaseWritesEnabled ? WordDb.openConnection() : null) {
             // Sammy Pandey: Use a single transaction for this import
-            conn.setAutoCommit(false);
+            if (conn != null) {
+                conn.setAutoCommit(false);
+            }
 
             // Sammy Pandey: DAOs for start/end counts + transitions
-            WordCountsDao countsDao = new WordCountsDao(conn);
-            NextWordDao nextWordDao = new NextWordDao(conn);
+            WordCountsDao countsDao = conn == null ? null : new WordCountsDao(conn);
+            NextWordDao nextWordDao = conn == null ? null : new NextWordDao(conn);
 
             // Going through each token
             for (String token : tokens) {
@@ -139,7 +152,10 @@ public class TextParser {
                 }
 
                 // Shriram Janardhan: Ensure word exists in DB and get its ID (unique word storage)
-                int wordId = WordDb.getOrCreateWordId(word, conn);
+                Integer wordId = null;
+                if (conn != null) {
+                    wordId = WordDb.getOrCreateWordId(word, conn);
+                }
 
                 // Sammy Pandey: Track average word length (ParseResult extension)
                 result.addCharacters(word.length());
@@ -154,7 +170,9 @@ public class TextParser {
                     expectingSentenceStart = false;          // Code by Archisha Sasson
 
                     // Sammy Pandey: DB start_count increments
-                    countsDao.incStart(wordId);
+                    if (countsDao != null && wordId != null) {
+                        countsDao.incStart(wordId);
+                    }
                     sentenceStartWordId = wordId;
                 }
 
@@ -169,7 +187,9 @@ public class TextParser {
                         (sentenceStartWordId != null && prevWordId.equals(sentenceStartWordId));
 
                     // precedes_sentence_end is marked when we hit boundary (above)
-                    nextWordDao.increment(prevWordId, wordId, followsStart, false);
+                    if (nextWordDao != null && wordId != null) {
+                        nextWordDao.increment(prevWordId, wordId, followsStart, false);
+                    }
 
                     // remember last transition inside current sentence
                     lastFromId = prevWordId;
@@ -203,10 +223,13 @@ public class TextParser {
             }
 
             // Sammy Pandey: Commit DB transaction
-            conn.commit();
+            if (conn != null) {
+                conn.commit();
+            }
         } catch (SQLException e) {
             throw new IOException("DB error: " + e.getMessage(), e); // Sammy Pandey
         }
+        // End of Code by Archisha Sasson
 
         result.setTotalWords(totalWords);
         result.setTotalSentences(totalSentences);

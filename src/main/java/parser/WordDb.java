@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 // Code by Shriram Janardhan - Database-backed unique word storage (MySQL)
 public final class WordDb {
@@ -39,21 +40,49 @@ public final class WordDb {
             throw new SQLException("Word must be non-empty");
         }
 
-        try (PreparedStatement upsert = conn.prepareStatement(
-            "INSERT INTO words (word_text) VALUES (?) " +
-                "ON DUPLICATE KEY UPDATE word_id = LAST_INSERT_ID(word_id)"
-        )) {
-            upsert.setString(1, word);
-            upsert.executeUpdate();
+        // Code by Archisha Sasson
+        Integer existingId = findWordId(word, conn);
+        if (existingId != null) {
+            return existingId;
         }
 
-        try (PreparedStatement lastId = conn.prepareStatement("SELECT LAST_INSERT_ID()");
-             ResultSet rs = lastId.executeQuery()) {
-            if (!rs.next()) {
-                throw new SQLException("Failed to retrieve LAST_INSERT_ID()");
+        try (PreparedStatement insert = conn.prepareStatement(
+            "INSERT INTO words (word_text) VALUES (?)",
+            Statement.RETURN_GENERATED_KEYS
+        )) {
+            insert.setString(1, word);
+            insert.executeUpdate();
+
+            try (ResultSet generatedKeys = insert.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    return generatedKeys.getInt(1);
+                }
             }
-            return rs.getInt(1);
+            throw new SQLException("Failed to retrieve generated word_id for: " + word);
+        } catch (SQLException e) {
+            Integer concurrentId = findWordId(word, conn);
+            if (concurrentId != null) {
+                return concurrentId;
+            }
+            throw e;
+        }
+        // End of Code by Archisha Sasson
+    }
+
+    // Code by Archisha Sasson
+    private static Integer findWordId(String word, Connection conn) throws SQLException {
+        try (PreparedStatement lookup = conn.prepareStatement(
+            "SELECT word_id FROM words WHERE word_text = ?"
+        )) {
+            lookup.setString(1, word);
+            try (ResultSet rs = lookup.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("word_id");
+                }
+                return null;
+            }
         }
     }
+    // End of Code by Archisha Sasson
 }
 // End of code by Shriram Janardhan (WordDb, database-backed word storage)

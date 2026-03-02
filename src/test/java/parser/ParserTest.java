@@ -5,7 +5,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.Tag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -16,10 +20,23 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * sample files with explicit expected values.
  */
 // Code by Archisha Sasson
+@Tag("unit")
+@Tag("parserdb")
+@DisplayName("ParserDB Parser Unit Tests")
 public class ParserTest {
+    // Code by Archisha Sasson
+    @BeforeEach
+    void announceTest(TestInfo testInfo) {
+        System.out.println("Running unit test: " + testInfo.getDisplayName());
+    }
+    // End of Code by Archisha Sasson
+
     @Test
+    @DisplayName("Simple fixture preserves expected word, sentence, and paragraph counts")
     void simpleCase() throws IOException {
-        TextParser parser = new TextParser();
+        // Code by Archisha Sasson
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
+        // End of Code by Archisha Sasson
         ParseResult result = parser.parse(resourcePath("simple.txt"));
 
         assertEquals(8, result.getTotalWords(), "simple totalWords");
@@ -33,8 +50,11 @@ public class ParserTest {
     }
 
     @Test
+    @DisplayName("Edge-case punctuation fixture preserves apostrophes, hyphens, and sentence boundaries")
     void edgeCase() throws IOException {
-        TextParser parser = new TextParser();
+        // Code by Archisha Sasson
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
+        // End of Code by Archisha Sasson
         ParseResult result = parser.parse(resourcePath("edge_cases.txt"));
 
         assertEquals(11, result.getTotalWords(), "edge totalWords");
@@ -53,8 +73,11 @@ public class ParserTest {
 
     // Shriram Janardhan: Tests paragraph counting (streaming parser)
     @Test
+    @DisplayName("Paragraph fixture counts blank-line paragraph breaks correctly")
     void paragraphCase() throws IOException {
-        TextParser parser = new TextParser();
+        // Code by Archisha Sasson
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
+        // End of Code by Archisha Sasson
         ParseResult result = parser.parse(resourcePath("paragraphs.txt"));
         assertEquals(2, result.getTotalParagraphs(), "paragraph totalParagraphs");
         assertEquals(9, result.getTotalWords(), "paragraph totalWords");
