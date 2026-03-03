@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 // Code by Archisha Sasson
 @Tag("unit")
 @Tag("parserdb")
-@DisplayName("ParserDB Normalizer Unit Tests")
+@DisplayName("Normalizer Unit Tests")
 public class NormalizerTest {
     private final Normalizer normalizer = new Normalizer();
 
@@ -29,7 +29,7 @@ public class NormalizerTest {
     }
 
     @Test
-    @DisplayName("Lowercases repeated word variants into one canonical form")
+    @DisplayName("Normalizer turns different letter cases into one lowercase word")
     void lowercasesRepeatedWordVariants() {
         assertEquals("hello", normalizer.normalize("Hello"), "Expected mixed-case token to normalize to lowercase");
         assertEquals("hello", normalizer.normalize("HELLO"), "Expected uppercase token to normalize to lowercase");
@@ -37,14 +37,14 @@ public class NormalizerTest {
     }
 
     @Test
-    @DisplayName("Preserves internal apostrophes and hyphens while trimming punctuation")
+    @DisplayName("Normalizer keeps apostrophes and hyphens inside words")
     void preservesInternalApostrophesAndHyphens() {
         assertEquals("don't", normalizer.normalize("\"Don't\""), "Expected apostrophes to remain after punctuation trimming");
         assertEquals("mother-in-law", normalizer.normalize("(Mother-in-law)"), "Expected hyphenated words to remain intact");
     }
 
     @Test
-    @DisplayName("Returns an empty string for punctuation-only tokens")
+    @DisplayName("Normalizer removes tokens that are only punctuation")
     void stripsPunctuationOnlyTokens() {
         assertEquals("", normalizer.normalize("..."), "Expected punctuation-only tokens to be dropped");
     }

@@ -26,10 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @Tag("integration")
 @Tag("parserdb")
 @Tag("word-storage")
-@DisplayName("ParserDB Word Storage Integration Tests")
+@DisplayName("Word Storage Integration Tests")
 public class WordStorageIT extends DatabaseIntegrationTestSupport {
     @Test
-    @DisplayName("Repeated occurrences reuse the same word row and word_id")
+    @DisplayName("Repeated words reuse the same database row")
     void repeatedOccurrencesReuseTheSameWordRowAndWordId() throws Exception {
         Path inputFile = writeInputFile("repeated-occurrences", "Echo echo echo. Echo?");
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);
@@ -50,7 +50,7 @@ public class WordStorageIT extends DatabaseIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Normalization stores lowercase words without duplicate mixed-case rows")
+    @DisplayName("Stored words stay lowercase without duplicate mixed-case rows")
     void normalizationStoresLowercaseWordsWithoutDuplicateMixedCaseRows() throws Exception {
         Path inputFile = writeInputFile("normalized-words", "Hello, HELLO hello!");
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);

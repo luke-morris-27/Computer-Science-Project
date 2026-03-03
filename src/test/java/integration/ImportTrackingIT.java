@@ -18,10 +18,10 @@ import org.junit.jupiter.api.Test;
 @Tag("integration")
 @Tag("parserdb")
 @Tag("import-tracking")
-@DisplayName("ParserDB Import Tracking Integration Tests")
+@DisplayName("Import Tracking Integration Tests")
 public class ImportTrackingIT {
     @Test
-    @DisplayName("Duplicate file imports are rejected once file-hash tracking is implemented")
+    @DisplayName("Duplicate file imports are rejected after file hashing is added")
     void duplicateFileImportsAreRejectedOnceHashTrackingExists() {
         throw new UnsupportedOperationException("Enable this test after imports.file_hash is wired into the parser import flow.");
     }

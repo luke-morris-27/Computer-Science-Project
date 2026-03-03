@@ -52,44 +52,72 @@ PARSER_RULES.md                    - Parser behavior notes
 ### Unit Test Commands
 - `mvn test`
   Runs every enabled unit test in `src/test/java` that is handled by the normal Surefire test phase.
+
 - `mvn test -Dgroups=unit`
   Runs only tests tagged with `unit`.
+
 - `mvn test -Dgroups=parserdb`
   Runs enabled ParserDB unit tests such as parser and normalizer tests.
+
 - `mvn test -Dgroups=generator`
   Runs enabled generator unit tests. 
+
 - `mvn test -Dtest=ParserTest`
   Runs one specific unit test class.
+
 - `mvn test -Dtest=NormalizerTest`
   Runs only the normalizer unit test class.
+
 - `mvn test -Dtest=ParserTest#simpleCase`
   Runs one specific unit test method from one class.
+
 - `mvn test -Dtest=ParserTest#edgeCase`
   Runs only the punctuation-heavy parser scenario.
+
 - `mvn test -Dtest=ParserTest#paragraphCase`
   Runs only the paragraph-counting parser scenario.
 
 ### Integration Test Commands
 - `mvn verify -Pdb-tests`
-  Runs the full Maven lifecycle plus the `db-tests` profile, which includes the integration-test phase for `*IT.java` classes.
+  Runs the full Maven lifecycle plus the `db-tests` profile, which includes the 
+  integration-test phase for `*IT.java` classes.
+
 - `mvn verify -Pdb-tests -Dgroups=integration`
   Runs only tests tagged with `integration`.
+
 - `mvn verify -Pdb-tests -Dgroups=parserdb`
   Runs ParserDB integration tests such as word storage, transition storage, and import tracking scaffolds.
+
 - `mvn verify -Pdb-tests -Dgroups=generator`
-  Runs generator integration tests. Right now the weighted generator scaffold is disabled, so this usually reports skipped tests until that code exists.
+  Runs generator integration tests such as `WeightedGeneratorIT` and `GreedyGeneratorIT`.
+
+- `SENTENCE_BUILDER_DB_URL=jdbc:mysql://localhost:3306/sentence_builder_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC mvn verify -Pdb-tests`
+  Runs all integration tests against a dedicated MySQL test database.
+
+- `SENTENCE_BUILDER_DB_URL=jdbc:mysql://localhost:3306/sentence_builder_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC SENTENCE_BUILDER_DB_USER=root SENTENCE_BUILDER_DB_PASSWORD=your_password mvn verify -Pdb-tests`
+  Runs all integration tests with an explicit MySQL username and password.
+
 - `mvn verify -Pdb-tests -Dtest=WordStorageIT`
   Runs one ParserDB integration test class.
+
 - `mvn verify -Pdb-tests -Dtest=TransitionStorageIT`
   Runs only transition-storage integration tests.
+
 - `mvn verify -Pdb-tests -Dtest=ImportTrackingIT`
   Runs only the import-tracking integration test class. This is currently disabled until file hashing and duplicate-import prevention are implemented.
+
 - `mvn verify -Pdb-tests -Dtest=WeightedGeneratorIT`
-  Runs only the weighted generator integration test scaffold.
+  Runs only the weighted generator integration test class.
+
+- `mvn verify -Pdb-tests -Dtest=GreedyGeneratorIT`
+  Runs only the greedy generator integration test class.
+
 - `mvn verify -Pdb-tests -Dtest=WordStorageIT#repeatedOccurrencesReuseTheSameWordRowAndWordId`
   Runs one specific integration test method.
+
 - `mvn verify -Pdb-tests -Dtest=TransitionStorageIT#repeatedWordPairsIncrementTransitionFrequency`
   Runs only the repeated-transition-frequency integration scenario.
+  
 - `mvn verify -Pdb-tests -Dtest=TransitionStorageIT#sentenceBoundariesUpdateStartEndCountsAndBoundaryFlags`
   Runs only the sentence-boundary integration scenario.
 

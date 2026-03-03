@@ -1,18 +1,16 @@
 package generator;
 
 /*
- * Class: WeightedGeneratorIT
- * Created by: Archisha Sasson
- * Description: Verifies weighted generator behavior against the database,
- * including generated sentence persistence and safe fallback for missing starts.
- * Example: A missing start word should fall back to a valid start word and save the sentence.
+ * Class: GreedyGeneratorIT
+ * Description: Verifies greedy generator behavior against the database,
+ * including deterministic next-word selection and generated sentence storage.
+ * Example: A missing start word should fall back to the highest-ranked start.
  */
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Random;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -22,55 +20,56 @@ import support.DatabaseIntegrationTestSupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-// Code by Archisha Sasson
 @Tag("integration")
 @Tag("generator")
-@Tag("weighted-generator")
-@DisplayName("Weighted Generator Integration Tests")
-public class WeightedGeneratorIT extends DatabaseIntegrationTestSupport {
+@Tag("greedy-generator")
+@DisplayName("Greedy Generator Integration Tests")
+public class GreedyGeneratorIT extends DatabaseIntegrationTestSupport {
     @Test
-    @DisplayName("Weighted generator saves the sentence and uses a fallback start word")
-    void weightedGenerationStoresSentencesAndHandlesMissingStartWords() throws Exception {
+    @DisplayName("Greedy generator saves the sentence and uses the best start word")
+    void greedyGenerationStoresGeneratedSentencesAndFallsBackToTheBestStartWord() throws Exception {
         int alphaId = insertWord("alpha", 1);
-        int betaId = insertWord("beta", 0);
-        insertTransition(alphaId, betaId, 2);
+        int betaId = insertWord("beta", 3);
+        int gammaId = insertWord("gamma", 0);
+        insertTransition(betaId, gammaId, 5);
+        insertTransition(alphaId, gammaId, 1);
 
-        WeightedGenerator generator = new WeightedGenerator(new Random(0));
+        GreedyGenerator generator = new GreedyGenerator();
 
-        String sentence = generator.generateWeighted("missing", 5);
+        String sentence = generator.generateGreedy("missing", 5);
 
-        assertEquals("alpha beta", sentence, "Expected generation to fall back to the only valid start word");
+        assertEquals("beta gamma", sentence, "Expected greedy generation to use the highest-ranked fallback start word");
         assertEquals(
             1,
             queryForInt(
                 "SELECT COUNT(*) FROM generated_sentences WHERE sentence_text = ? AND algorithm_name = ?",
-                "alpha beta",
-                "weighted"
+                "beta gamma",
+                "greedy"
             ),
-            "Expected the weighted sentence to be stored with the weighted algorithm label"
+            "Expected the greedy sentence to be stored with the greedy algorithm label"
         );
         assertEquals(
-            alphaId,
+            betaId,
             queryForInt(
                 "SELECT starting_word_id FROM generated_sentences WHERE sentence_text = ?",
-                "alpha beta"
+                "beta gamma"
             ),
-            "Expected the stored sentence to keep the chosen starting word ID"
+            "Expected the stored greedy sentence to keep the chosen starting word ID"
         );
     }
 
     @Test
-    @DisplayName("Weighted generator returns an empty result when the database has no start word")
-    void weightedGenerationReturnsEmptyStringWhenNoValidStartWordsExist() throws Exception {
-        WeightedGenerator generator = new WeightedGenerator(new Random(0));
+    @DisplayName("Greedy generator returns an empty result when the database has no start word")
+    void greedyGenerationReturnsAnEmptyStringWhenTheDatabaseHasNoValidStartWords() throws Exception {
+        GreedyGenerator generator = new GreedyGenerator();
 
-        String sentence = generator.generateWeighted(null, 5);
+        String sentence = generator.generateGreedy(null, 5);
 
         assertEquals("", sentence, "Expected generation to return an empty string when the DB has no start words");
         assertEquals(
             0,
             queryForInt("SELECT COUNT(*) FROM generated_sentences"),
-            "Expected no generated sentence rows when generation could not start"
+            "Expected no generated sentence rows when greedy generation could not start"
         );
     }
 
@@ -103,4 +102,3 @@ public class WeightedGeneratorIT extends DatabaseIntegrationTestSupport {
         }
     }
 }
-// End of Code by Archisha Sasson

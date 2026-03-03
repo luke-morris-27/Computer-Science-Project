@@ -26,10 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("integration")
 @Tag("parserdb")
 @Tag("transition-storage")
-@DisplayName("ParserDB Transition Storage Integration Tests")
+@DisplayName("Transition Storage Integration Tests")
 public class TransitionStorageIT extends DatabaseIntegrationTestSupport {
     @Test
-    @DisplayName("Repeated word pairs increment transition frequency instead of inserting duplicates")
+    @DisplayName("Repeated word pairs raise the transition count instead of making duplicates")
     void repeatedWordPairsIncrementTransitionFrequency() throws Exception {
         Path inputFile = writeInputFile("repeated-pairs", "Alpha beta. Alpha beta. Alpha beta.");
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);
@@ -63,7 +63,7 @@ public class TransitionStorageIT extends DatabaseIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Sentence boundaries update start_count, end_count, and transition boundary flags")
+    @DisplayName("Sentence boundaries update start and end counts")
     void sentenceBoundariesUpdateStartEndCountsAndBoundaryFlags() throws Exception {
         Path inputFile = writeInputFile("sentence-boundaries", "Alpha beta. Alpha gamma.");
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);

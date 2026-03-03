@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 // Code by Archisha Sasson
 @Tag("unit")
 @Tag("parserdb")
-@DisplayName("ParserDB Parser Unit Tests")
+@DisplayName("Parser Unit Tests")
 public class ParserTest {
     // Code by Archisha Sasson
     @BeforeEach
@@ -32,7 +32,7 @@ public class ParserTest {
     // End of Code by Archisha Sasson
 
     @Test
-    @DisplayName("Simple fixture preserves expected word, sentence, and paragraph counts")
+    @DisplayName("Simple file gives the expected word, sentence, and paragraph counts")
     void simpleCase() throws IOException {
         // Code by Archisha Sasson
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
@@ -50,7 +50,7 @@ public class ParserTest {
     }
 
     @Test
-    @DisplayName("Edge-case punctuation fixture preserves apostrophes, hyphens, and sentence boundaries")
+    @DisplayName("Punctuation-heavy file keeps apostrophes, hyphens, and sentence breaks")
     void edgeCase() throws IOException {
         // Code by Archisha Sasson
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
@@ -73,7 +73,7 @@ public class ParserTest {
 
     // Shriram Janardhan: Tests paragraph counting (streaming parser)
     @Test
-    @DisplayName("Paragraph fixture counts blank-line paragraph breaks correctly")
+    @DisplayName("Paragraph file counts blank lines as paragraph breaks")
     void paragraphCase() throws IOException {
         // Code by Archisha Sasson
         TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);

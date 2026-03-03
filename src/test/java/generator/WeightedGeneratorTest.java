@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 @Tag("unit")
 @Tag("generator")
 @Tag("weighted-generator")
-@DisplayName("Generator Weighted Unit Tests")
+@DisplayName("Weighted Generator Unit Tests")
 public class WeightedGeneratorTest {
     @BeforeEach
     void announceTest(TestInfo testInfo) {
@@ -40,7 +40,7 @@ public class WeightedGeneratorTest {
     }
 
     @Test
-    @DisplayName("Weighted generation prefers higher-frequency next words based on the random roll")
+    @DisplayName("Weighted generator favors more common next words")
     void weightedGenerationPrefersHigherFrequencyNextWords() throws SQLException {
         FakeGeneratorRepository repository = new FakeGeneratorRepository();
         repository.wordIds.put("hello", 1);
@@ -67,7 +67,7 @@ public class WeightedGeneratorTest {
     }
 
     @Test
-    @DisplayName("Weighted generation falls back to start words when the requested start word is missing")
+    @DisplayName("Weighted generator uses a start word when the given word is missing")
     void weightedGenerationFallsBackToStartWordsWhenStartWordIsMissing() throws SQLException {
         FakeGeneratorRepository repository = new FakeGeneratorRepository();
         repository.startWords = List.of(
@@ -89,7 +89,7 @@ public class WeightedGeneratorTest {
     }
 
     @Test
-    @DisplayName("Weighted generation returns an empty string when no start words exist")
+    @DisplayName("Weighted generator returns an empty result when no start word exists")
     void weightedGenerationReturnsEmptyStringWhenNoStartWordsExist() throws SQLException {
         FakeGeneratorRepository repository = new FakeGeneratorRepository();
         WeightedGenerator generator = new WeightedGenerator(
