@@ -15,8 +15,7 @@ public class NextWordDao {
     private static final String UPDATE =
             "UPDATE next_word " +
                     "SET transition_count = transition_count + 1, " +
-                    "    follows_sentence_start = CASE WHEN follows_sentence_start OR ? THEN TRUE ELSE FALSE END, " +
-                    "    precedes_sentence_end = CASE WHEN precedes_sentence_end OR ? THEN TRUE ELSE FALSE END " +
+                    "    follows_sentence_start = CASE WHEN follows_sentence_start OR ? THEN TRUE ELSE FALSE END " +
                     "WHERE from_word_id = ? AND to_word_id = ?";
     // End of Code by Archisha Sasson
 
@@ -27,9 +26,9 @@ public class NextWordDao {
         this.conn = conn;
     }
 
-    public void increment(int fromId, int toId, boolean followsStart, boolean precedesEnd) throws SQLException {
+    public void increment(int fromId, int toId, boolean followsStart) throws SQLException {
         // Code by Archisha Sasson
-        if (updateExistingRow(fromId, toId, followsStart, precedesEnd) > 0) {
+        if (updateExistingRow(fromId, toId, followsStart) > 0) {
             return;
         }
 
@@ -37,10 +36,9 @@ public class NextWordDao {
             ps.setInt(1, fromId);
             ps.setInt(2, toId);
             ps.setBoolean(3, followsStart);
-            ps.setBoolean(4, precedesEnd);
             ps.executeUpdate();
         } catch (SQLException e) {
-            if (updateExistingRow(fromId, toId, followsStart, precedesEnd) == 0) {
+            if (updateExistingRow(fromId, toId, followsStart) == 0) {
                 throw e;
             }
         }
@@ -56,12 +54,11 @@ public class NextWordDao {
     }
 
     // Code by Archisha Sasson
-    private int updateExistingRow(int fromId, int toId, boolean followsStart, boolean precedesEnd) throws SQLException {
+    private int updateExistingRow(int fromId, int toId, boolean followsStart) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(UPDATE)) {
             ps.setBoolean(1, followsStart);
-            ps.setBoolean(2, precedesEnd);
-            ps.setInt(3, fromId);
-            ps.setInt(4, toId);
+            ps.setInt(2, fromId);
+            ps.setInt(3, toId);
             return ps.executeUpdate();
         }
     }

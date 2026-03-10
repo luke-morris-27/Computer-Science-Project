@@ -188,7 +188,7 @@ public class TextParser {
 
                     // precedes_sentence_end is marked when we hit boundary (above)
                     if (nextWordDao != null && wordId != null) {
-                        nextWordDao.increment(prevWordId, wordId, followsStart, false);
+                        nextWordDao.increment(prevWordId, wordId, followsStart);
                     }
 
                     // remember last transition inside current sentence

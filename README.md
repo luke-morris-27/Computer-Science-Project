@@ -22,7 +22,8 @@ src/
 ├── test/java/parser/              - JUnit 5 parser tests
 └── test/resources/parser/         - Parser sample input files
 database/
-└── SentenceBuilderDatabase.sql    - Database schema
+├── SentenceBuilderDatabase.sql    - Database schema
+└── insertData.sql                 - Sample seed data
 PARSER_RULES.md                    - Parser behavior notes
 ```
 
