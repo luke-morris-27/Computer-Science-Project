@@ -19,6 +19,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <junit.jupiter.version>5.10.2</junit.jupiter.version>
+        <javafx.version>17.0.10</javafx.version>
         <!-- Code by Archisha Sasson -->
         <groups></groups>
         <excludedGroups></excludedGroups>
@@ -43,6 +44,12 @@
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.jupiter.version}</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
         </dependency>
 
     </dependencies>
@@ -74,6 +81,14 @@
                     </systemPropertyVariables>
                 </configuration>
                 <!-- End of Code by Archisha Sasson -->
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>ui.SentenceBuilderApp</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>

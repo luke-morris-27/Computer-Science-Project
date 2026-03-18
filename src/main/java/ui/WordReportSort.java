@@ -1,6 +1,6 @@
 /*
  * Class: WordReportSort
- * Created by: Person 5
+ * Created by: Archisha Sasson
  * Description: Determines how word-level report data should be ordered in the UI.
  * Example: WordReportSort.START_COUNT_DESC
  */

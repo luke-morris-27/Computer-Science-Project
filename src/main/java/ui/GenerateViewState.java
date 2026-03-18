@@ -1,6 +1,6 @@
 /*
  * Class: GenerateViewState
- * Created by: Person 5
+ * Created by: Archisha Sasson
  * Description: Encapsulates generation-screen result, including success state, sentence output, and error text.
  * Example: new GenerateViewState(true, "hello world", "")
  */
