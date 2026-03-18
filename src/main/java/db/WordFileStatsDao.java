@@ -7,6 +7,7 @@
 package db;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collection;
 
@@ -18,9 +19,29 @@ public class WordFileStatsDao {
     }
 
     public void upsertStats(long fileId, Collection<WordFileStatInput> stats) throws SQLException {
-        // Guidance:
-        // For each row, insert or update count_in_file/start_in_file/end_in_file.
-        // Use batch execution for efficiency.
-        throw new UnsupportedOperationException("Not implemented yet");
+
+        String sql =
+                "INSERT INTO word_file_stats (word_id, file_id, count_in_file, start_in_file, end_in_file) " +
+                "VALUES (?, ?, ?, ?, ?) " +
+                "ON DUPLICATE KEY UPDATE " +
+                "count_in_file = VALUES(count_in_file), " +
+                "start_in_file = VALUES(start_in_file), " +
+                "end_in_file = VALUES(end_in_file)";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            for (WordFileStatInput stat : stats) {
+
+                ps.setInt(1, stat.wordId());
+                ps.setLong(2, fileId);
+                ps.setInt(3, stat.countInFile());
+                ps.setInt(4, stat.startInFile());
+                ps.setInt(5, stat.endInFile());
+
+                ps.addBatch();
+            }
+
+            ps.executeBatch();
+        }
     }
 }
