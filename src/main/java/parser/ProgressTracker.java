@@ -7,16 +7,42 @@
 package parser;
 
 public class ProgressTracker {
+
     public int percent(int current, int total) {
-        // Guidance:
-        // Return a value in [0, 100]. Handle total <= 0 safely.
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (total <= 0) {
+            return 0;
+        }
+
+        int percent = (int) ((current * 100.0) / total);
+
+        if (percent < 0) return 0;
+        if (percent > 100) return 100;
+
+        return percent;
     }
 
     public String renderBar(int current, int total, int width) {
-        // Guidance:
-        // Use percent() to determine fill amount.
-        // Output format should look like: [#####-----] 50%
-        throw new UnsupportedOperationException("Not implemented yet");
+
+        int percent = percent(current, total);
+
+        int filled = (int) ((percent / 100.0) * width);
+        int empty = width - filled;
+
+        StringBuilder bar = new StringBuilder();
+
+        bar.append("[");
+
+        for (int i = 0; i < filled; i++) {
+            bar.append("#");
+        }
+
+        for (int i = 0; i < empty; i++) {
+            bar.append("-");
+        }
+
+        bar.append("] ");
+        bar.append(percent).append("%");
+
+        return bar.toString();
     }
 }
