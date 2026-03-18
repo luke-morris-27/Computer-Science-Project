@@ -11,6 +11,7 @@ import java.io.Reader;
 import java.util.function.Consumer;
 
 public class StreamingTokenProcessor {
+
     private final Tokenizer tokenizer;
 
     public StreamingTokenProcessor() {
@@ -22,10 +23,19 @@ public class StreamingTokenProcessor {
     }
 
     public int process(Reader reader, Consumer<String> tokenConsumer) throws IOException {
-        // Guidance:
-        // 1. Use tokenizer.tokenizeStreaming(reader).
-        // 2. Send each token to tokenConsumer in order.
-        // 3. Return the paragraph count from StreamResult.
-        throw new UnsupportedOperationException("Not implemented yet");
+
+        // 1. Get streaming result from tokenizer
+        Tokenizer.StreamResult result = tokenizer.tokenizeStreaming(reader);
+
+        int paragraphCount = result.getParagraphCount();
+
+        // 2. Stream tokens one-by-one
+        while (result.hasNext()) {
+            String token = result.next();
+            tokenConsumer.accept(token);
+        }
+
+        // 3. Return paragraph count
+        return paragraphCount;
     }
 }
