@@ -31,8 +31,8 @@ public class FileStatsPersistenceService {
         long fileId = fileDao.upsertFile(
                 fileName,
                 filePath.toString(),
-                result.getTotalWordCount(),
-                result.getSentenceCount()
+                result.getTotalWords(),
+                result.getTotalSentences()
         );
 
         // 2. Build word statistics
