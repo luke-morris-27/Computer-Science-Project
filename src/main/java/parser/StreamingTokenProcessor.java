@@ -22,20 +22,16 @@ public class StreamingTokenProcessor {
         this.tokenizer = tokenizer;
     }
 
-    public int process(Reader reader, Consumer<String> tokenConsumer) throws IOException {
+     public int process(Reader reader, Consumer<String> tokenConsumer) throws IOException {
 
-        // 1. Get streaming result from tokenizer
         Tokenizer.StreamResult result = tokenizer.tokenizeStreaming(reader);
 
-        int paragraphCount = result.getParagraphCount();
-
-        // 2. Stream tokens one-by-one
-        while (result.hasNext()) {
-            String token = result.next();
+        // Send tokens one-by-one
+        for (String token : result.tokens) {
             tokenConsumer.accept(token);
         }
 
-        // 3. Return paragraph count
-        return paragraphCount;
+        // Return paragraph count
+        return result.paragraphCount;
     }
 }
