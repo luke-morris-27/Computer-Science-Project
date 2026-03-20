@@ -1,6 +1,6 @@
 /*
  * Class: ConnectionTransactionRunner
- * Created by: Person 3
+ * Created by: Luke Morris
  * Description: Runs database work inside a transaction and guarantees commit or rollback.
  * Example: runner.run(conn -> doImportWork(conn))
  */
@@ -11,12 +11,22 @@ import java.sql.SQLException;
 import java.util.function.Supplier;
 
 public class ConnectionTransactionRunner {
-
+    /*
+     * Functional interface representing a block of work to execute
+     * inside a transaction.
+     *
+     * Example usage:
+     * runner.run(conn -> {
+     *     // DB operations here
+     *     return result;
+     * });
+     */
     @FunctionalInterface
     public interface TransactionWork<T> {
         T execute(Connection connection) throws SQLException;
     }
 
+    // Supplies database connection when needed
     private final Supplier<Connection> connectionSupplier;
 
     public ConnectionTransactionRunner(Supplier<Connection> connectionSupplier) {
@@ -24,7 +34,7 @@ public class ConnectionTransactionRunner {
     }
 
     public <T> T run(TransactionWork<T> work) throws SQLException {
-
+        // Acquire transaction, store original auto commit setting
         Connection conn = connectionSupplier.get();
         boolean originalAutoCommit = true;
 
