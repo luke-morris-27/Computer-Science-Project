@@ -1,0 +1,121 @@
+package generator;
+
+/*
+ * Class: GreedyGeneratorTest
+ * Description: Verifies greedy generator logic without a database by using
+ * a fake repository with deterministic next-word ordering.
+ * Example: The generator should always take the first weighted option.
+ */
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+
+import parser.Normalizer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+@Tag("unit")
+@Tag("generator")
+@Tag("greedy-generator")
+@DisplayName("Greedy Generator Unit Tests")
+public class GreedyGeneratorTest {
+    @BeforeEach
+    void announceTest(TestInfo testInfo) {
+        System.out.println("Running unit test: " + testInfo.getDisplayName());
+    }
+
+    @Test
+    @DisplayName("Greedy generator picks the most common next word")
+    void greedyGenerationChoosesHighestFrequencyAndStoresTheResult() throws SQLException {
+        FakeGeneratorRepository repository = new FakeGeneratorRepository();
+        repository.wordIds.put("hello", 1);
+        repository.nextWords.put(
+            1,
+            List.of(
+                new WeightedWord(3, "there", 5),
+                new WeightedWord(2, "world", 1)
+            )
+        );
+
+        GreedyGenerator generator = new GreedyGenerator(repository, new Normalizer());
+
+        String sentence = generator.generateGreedy("hello", 3);
+
+        assertEquals("hello there", sentence, "Expected greedy generation to choose the first and highest-weight next word");
+        assertEquals("hello there", repository.savedSentenceText, "Expected the greedy sentence to be stored");
+        assertEquals("greedy", repository.savedAlgorithmName, "Expected the greedy algorithm label to be stored");
+        assertEquals(1, repository.savedStartingWordId, "Expected the requested start word ID to be stored");
+    }
+
+    @Test
+    @DisplayName("Greedy generator uses the best start word when the given word is missing")
+    void greedyGenerationFallsBackToTheBestStartWordWhenTheRequestedStartIsMissing() throws SQLException {
+        FakeGeneratorRepository repository = new FakeGeneratorRepository();
+        repository.startWords = List.of(
+            new WeightedWord(20, "beta", 4),
+            new WeightedWord(10, "alpha", 1)
+        );
+
+        GreedyGenerator generator = new GreedyGenerator(repository, new Normalizer());
+
+        String sentence = generator.generateGreedy("missing", 2);
+
+        assertEquals("beta", sentence, "Expected greedy fallback to choose the first valid start word");
+        assertEquals("beta", repository.savedSentenceText, "Expected fallback generation to still be stored");
+        assertEquals(20, repository.savedStartingWordId, "Expected the chosen fallback start word ID to be stored");
+    }
+
+    @Test
+    @DisplayName("Greedy generator returns an empty result when no start word exists")
+    void greedyGenerationReturnsAnEmptyStringWhenNoValidStartWordsExist() throws SQLException {
+        FakeGeneratorRepository repository = new FakeGeneratorRepository();
+        GreedyGenerator generator = new GreedyGenerator(repository, new Normalizer());
+
+        String sentence = generator.generateGreedy(null, 5);
+
+        assertEquals("", sentence, "Expected generation to return an empty string when there is no valid starting point");
+        assertNull(repository.savedSentenceText, "Expected no sentence to be stored when generation could not start");
+    }
+
+    private static final class FakeGeneratorRepository implements GeneratorRepository {
+        private final Map<String, Integer> wordIds = new HashMap<>();
+        private final Map<Integer, List<WeightedWord>> nextWords = new HashMap<>();
+        private List<WeightedWord> startWords = new ArrayList<>();
+
+        private String savedSentenceText;
+        private String savedAlgorithmName;
+        private Integer savedStartingWordId;
+
+        @Override
+        public Integer getWordId(String wordText) {
+            return wordIds.get(wordText);
+        }
+
+        @Override
+        public List<WeightedWord> getNextWords(int wordId) {
+            return nextWords.getOrDefault(wordId, List.of());
+        }
+
+        @Override
+        public List<WeightedWord> getStartWords() {
+            return startWords;
+        }
+
+        @Override
+        public void saveGeneratedSentence(String sentenceText, String algorithmName, Integer startingWordId) {
+            this.savedSentenceText = sentenceText;
+            this.savedAlgorithmName = algorithmName;
+            this.savedStartingWordId = startingWordId;
+        }
+    }
+}
