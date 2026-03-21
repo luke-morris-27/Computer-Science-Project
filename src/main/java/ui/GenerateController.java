@@ -12,12 +12,15 @@ import generator.GenerationAlgorithm;
 import generator.GenerationService;
 
 public class GenerateController {
+    // talks to the generation service for ui requests
     private final GenerationService generationService;
 
+    // builds the controller with a generation service
     public GenerateController(GenerationService generationService) {
         this.generationService = generationService;
     }
 
+    // handles generate requests and returns a ui state
     public GenerateViewState generate(GenerationAlgorithm algorithm, String startWord, int maxWords) {
         if (algorithm == null) {
             return new GenerateViewState(false, "", "Generation algorithm is required.");

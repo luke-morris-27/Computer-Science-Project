@@ -6,7 +6,11 @@
  */
 package generator;
 
+// lists the allowed generation modes
 public enum GenerationAlgorithm {
+    // picks words based on weighted frequency
     WEIGHTED,
+
+    // always picks the most likely next word
     GREEDY
 }
