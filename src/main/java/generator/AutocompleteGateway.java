@@ -1,6 +1,6 @@
 /*
  * Class: AutocompleteGateway
- * Created by: Person 4
+ * Created by: Sammy
  * Description: Provides persistence operations needed by autocomplete logic.
  * Example: gateway.findNextWordSuggestions("hello", 5)
  */
