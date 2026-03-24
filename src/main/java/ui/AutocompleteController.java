@@ -6,94 +6,38 @@
  */
 package ui;
 
-import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.util.List;
 
 import generator.AutocompleteService;
 import generator.WeightedWord;
-import parser.Normalizer;
 
 public class AutocompleteController {
+    // talks to the autocomplete service for ui requests
     private final AutocompleteService autocompleteService;
 
+    // builds the controller with an autocomplete service
     public AutocompleteController(AutocompleteService autocompleteService) {
         this.autocompleteService = autocompleteService;
     }
 
+    // handles a committed word and returns suggestion state for the ui
     public AutocompleteViewState onWordCommitted(String committedWord, char commitChar, int limit) throws SQLException {
-        boolean shouldRequestSuggestions;
-        try {
-            shouldRequestSuggestions = autocompleteService.shouldQuerySuggestions(commitChar);
-        } catch (UnsupportedOperationException exception) {
-            shouldRequestSuggestions = commitChar == ' ' || commitChar == ',';
-        }
-
-        if (!shouldRequestSuggestions) {
+        if (!autocompleteService.shouldQuerySuggestions(commitChar)) {
             return new AutocompleteViewState(false, List.of());
         }
 
-        List<WeightedWord> weightedSuggestions;
-        try {
-            weightedSuggestions = autocompleteService.suggestNextWords(committedWord, limit);
-        } catch (UnsupportedOperationException exception) {
-            weightedSuggestions = suggestNextWordsFallback(committedWord, limit);
-        }
+        List<WeightedWord> weightedSuggestions = autocompleteService.suggestNextWords(committedWord, limit);
 
+        // converts weighted results into plain words for the ui
         List<String> suggestions = weightedSuggestions.stream()
             .map(WeightedWord::wordText)
             .toList();
         return new AutocompleteViewState(true, suggestions);
     }
 
+    // sends a new user word to the service
     public void registerUserWord(String rawWord) throws SQLException {
-        try {
-            autocompleteService.registerUnknownWord(rawWord);
-        } catch (UnsupportedOperationException exception) {
-            registerUnknownWordFallback(rawWord);
-        }
-    }
-
-    private List<WeightedWord> suggestNextWordsFallback(String committedWord, int limit) throws SQLException {
-        if (limit <= 0) {
-            throw new IllegalArgumentException("Suggestion limit must be greater than zero.");
-        }
-
-        String normalizedWord = resolveNormalizer().normalize(committedWord);
-        if (normalizedWord.isBlank()) {
-            return List.of();
-        }
-
-        return resolveGateway().findNextWordSuggestions(normalizedWord, limit);
-    }
-
-    private void registerUnknownWordFallback(String rawWord) throws SQLException {
-        String normalizedWord = resolveNormalizer().normalize(rawWord);
-        if (normalizedWord.isBlank()) {
-            return;
-        }
-        resolveGateway().ensureWordExists(normalizedWord);
-    }
-
-    private generator.AutocompleteGateway resolveGateway() {
-        return (generator.AutocompleteGateway) readField("gateway");
-    }
-
-    private Normalizer resolveNormalizer() {
-        Object normalizer = readField("normalizer");
-        if (normalizer instanceof Normalizer parserNormalizer) {
-            return parserNormalizer;
-        }
-        return new Normalizer();
-    }
-
-    private Object readField(String fieldName) {
-        try {
-            Field field = AutocompleteService.class.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            return field.get(autocompleteService);
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Unable to access autocomplete service internals.", exception);
-        }
+        autocompleteService.registerUnknownWord(rawWord);
     }
 }
