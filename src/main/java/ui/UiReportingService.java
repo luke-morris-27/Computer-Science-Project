@@ -1,6 +1,6 @@
 /*
  * Class: UiReportingService
- * Created by: Person 5
+ * Created by: Archisha Sasson
  * Description: Supplies reporting data used by the reports screen.
  * Example: service.listGeneratedSentences(true, 100)
  */

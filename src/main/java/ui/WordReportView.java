@@ -1,6 +1,6 @@
 /*
  * Class: WordReportView
- * Created by: Person 5
+ * Created by: Archisha Sasson
  * Description: Represents one row in the UI word-report table.
  * Example: new WordReportView("hello", 20, 4, 3)
  */

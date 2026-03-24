@@ -1,6 +1,6 @@
 /*
  * Class: ReportsController
- * Created by: Person 5
+ * Created by: Archisha Sasson
  * Description: Handles report-screen queries for word lists and generated sentence history.
  * Example: controller.listWords(WordReportSort.ALPHABETICAL, 200)
  */
@@ -17,17 +17,13 @@ public class ReportsController {
     }
 
     public List<WordReportView> listWords(WordReportSort sort, int limit) throws SQLException {
-        // Guidance:
-        // 1. Apply default sort when null.
-        // 2. Apply safe default for non-positive limit.
-        // 3. Delegate to reportingService.
-        throw new UnsupportedOperationException("Not implemented yet");
+        WordReportSort effectiveSort = sort == null ? WordReportSort.ALPHABETICAL : sort;
+        int effectiveLimit = limit <= 0 ? 100 : limit;
+        return reportingService.listWords(effectiveSort, effectiveLimit);
     }
 
     public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) throws SQLException {
-        // Guidance:
-        // 1. Apply safe default for non-positive limit.
-        // 2. Delegate to reportingService.
-        throw new UnsupportedOperationException("Not implemented yet");
+        int effectiveLimit = limit <= 0 ? 100 : limit;
+        return reportingService.listGeneratedSentences(onlyDuplicates, effectiveLimit);
     }
 }
