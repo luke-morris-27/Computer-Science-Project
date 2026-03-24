@@ -100,7 +100,6 @@ public class SentenceBuilderApp extends Application {
 
     private TextField autocompleteCommittedWordField;
     private Spinner<Integer> suggestionLimitSpinner;
-    private ComboBox<String> triggerBox;
     private ListView<String> suggestionsView;
 
     private ComboBox<WordReportSort> reportSortBox;
@@ -201,8 +200,8 @@ public class SentenceBuilderApp extends Application {
                 log("Draft is empty, so there is no last word to suggest from.");
                 return;
             }
-            autocompleteCommittedWordField.setText(lastWord);
-            requestSuggestions(lastWord, resolveTriggerCharacter(), suggestionLimitSpinner.getValue(), true);
+                autocompleteCommittedWordField.setText(lastWord);
+                requestSuggestions(lastWord, ' ', suggestionLimitSpinner.getValue(), true);
         });
 
         Button useLastWordForGenerationButton = new Button("Use Last Word for Generation");
@@ -347,10 +346,6 @@ public class SentenceBuilderApp extends Application {
         suggestionLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 20, 5));
         suggestionLimitSpinner.setEditable(true);
 
-        triggerBox = new ComboBox<>();
-        triggerBox.getItems().addAll("Space", "Comma", "Period");
-        triggerBox.setValue("Space");
-
         suggestionsView = new ListView<>();
         suggestionsView.setPrefHeight(260);
         suggestionsView.setPlaceholder(new Label("Suggestions show up here after you request them."));
@@ -373,7 +368,7 @@ public class SentenceBuilderApp extends Application {
                 return;
             }
             autocompleteCommittedWordField.setText(committedWord);
-            requestSuggestions(committedWord, resolveTriggerCharacter(), suggestionLimitSpinner.getValue(), true);
+            requestSuggestions(committedWord, ' ', suggestionLimitSpinner.getValue(), true);
         });
 
         TextField registerWordField = new TextField();
@@ -397,10 +392,8 @@ public class SentenceBuilderApp extends Application {
         form.setVgap(12);
         form.add(new Label("Committed word"), 0, 0);
         form.add(autocompleteCommittedWordField, 1, 0);
-        form.add(new Label("Trigger"), 0, 1);
-        form.add(triggerBox, 1, 1);
-        form.add(new Label("Suggestion limit"), 0, 2);
-        form.add(suggestionLimitSpinner, 1, 2);
+        form.add(new Label("Suggestion limit"), 0, 1);
+        form.add(suggestionLimitSpinner, 1, 1);
 
         VBox content = new VBox(18,
             titledLabel("Autocomplete"),
@@ -658,14 +651,6 @@ public class SentenceBuilderApp extends Application {
             tokens.remove(0);
         }
         return String.join(" ", tokens);
-    }
-
-    private char resolveTriggerCharacter() {
-        return switch (triggerBox.getValue()) {
-            case "Comma" -> ',';
-            case "Period" -> '.';
-            default -> ' ';
-        };
     }
 
     private void refreshReports() {
