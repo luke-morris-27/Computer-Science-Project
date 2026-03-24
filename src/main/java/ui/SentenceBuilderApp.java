@@ -64,17 +64,28 @@ import parser.Tokenizer;
 public class SentenceBuilderApp extends Application {
     private static final DateTimeFormatter IMPORT_TIME_FORMATTER = DateTimeFormatter.ISO_INSTANT;
 
+    // This preview app does not talk directly to the production database-backed UI flow.
+    // Instead, it keeps a lightweight in-memory model so the team can demonstrate the
+    // screens and controller interactions without requiring a full import pipeline.
     private final DemoUiState demoState = new DemoUiState();
     private final Normalizer normalizer = new Normalizer();
+    // The preview parser reads imported text files and produces the statistics that feed
+    // the demo generation, autocomplete, and reports tabs.
     private final TextParser previewParser = new TextParser(new Tokenizer(), new Normalizer(), false);
     private final ImportController importController = new ImportController();
+    // Autocomplete goes through the real controller/service layer, but the gateway is an
+    // in-memory adapter backed by DemoUiState instead of the database DAO.
     private final AutocompleteController autocompleteController =
         new AutocompleteController(new AutocompleteService(new InMemoryAutocompleteGateway(demoState)));
+    // Generation also goes through the real controller/service contract. The two executors
+    // are supplied as lambdas so the preview app can simulate weighted and greedy output.
     private final GenerateController generateController =
         new GenerateController(new GenerationService(
             (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.WEIGHTED, startWord, maxWords),
             (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.GREEDY, startWord, maxWords)
         ));
+    // Reports are rendered from demoState so the UI can display imported word counts and
+    // generated sentence history without depending on persistence.
     private final ReportsController reportsController =
         new ReportsController(new InMemoryReportingService(demoState));
 
@@ -113,12 +124,19 @@ public class SentenceBuilderApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        // Build the multi-tab workspace first so it can be dropped into the main split view.
         TabPane workspaceTabs = createWorkspaceTabs(stage);
 
+        // Left side: import/generate/autocomplete/report tabs.
+        // Right side: sentence draft panel that acts as the user's working canvas.
         SplitPane splitPane = new SplitPane(workspaceTabs, createDraftPane());
         splitPane.setDividerPositions(0.7);
 
         BorderPane root = new BorderPane();
+        // The root layout is intentionally simple:
+        // top = project header,
+        // center = main workspace,
+        // bottom = activity log.
         root.setTop(createHeader());
         root.setCenter(splitPane);
         root.setBottom(createActivityLogPane());
@@ -132,6 +150,7 @@ public class SentenceBuilderApp extends Application {
         stage.setScene(scene);
         stage.show();
 
+        // The workflow is import-first, so most tabs stay disabled until a file is loaded.
         setWorkspaceEnabled(false);
         refreshDraftMetadata();
         refreshReports();
@@ -139,6 +158,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private TabPane createWorkspaceTabs(Stage stage) {
+        // Keep references to the non-import tabs so they can be enabled/disabled later.
         generateTab = createGenerateTab();
         autocompleteTab = createAutocompleteTab();
         reportsTab = createReportsTab();
@@ -154,6 +174,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createHeader() {
+        // Header card summarizes the currently imported file and basic parse counts.
         Label title = new Label("Team 43: Sentence Builder");
         title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
 
@@ -184,6 +205,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createDraftPane() {
+        // The draft pane is the shared "workspace" that generation and autocomplete both feed.
         Label title = titledLabel("Sentence Draft");
         Label instructions = new Label("Type directly or single-click an autocomplete suggestion to append it.");
         instructions.setWrapText(true);
@@ -195,6 +217,8 @@ public class SentenceBuilderApp extends Application {
 
         Button useLastWordForSuggestionsButton = new Button("Use Last Word for Suggestions");
         useLastWordForSuggestionsButton.setOnAction(event -> {
+            // This lets the user continue autocomplete from the current sentence draft rather
+            // than manually copying the final word into the autocomplete form.
             String lastWord = getLastDraftWord();
             if (lastWord.isBlank()) {
                 log("Draft is empty, so there is no last word to suggest from.");
@@ -206,6 +230,7 @@ public class SentenceBuilderApp extends Application {
 
         Button useLastWordForGenerationButton = new Button("Use Last Word for Generation");
         useLastWordForGenerationButton.setOnAction(event -> {
+            // Same idea as the suggestions button above, but for sentence generation.
             String lastWord = getLastDraftWord();
             if (lastWord.isBlank()) {
                 log("Draft is empty, so there is no last word to generate from.");
@@ -252,6 +277,7 @@ public class SentenceBuilderApp extends Application {
 
         Button browseButton = new Button("Browse");
         browseButton.setOnAction(event -> {
+            // Standard JavaFX file chooser used only to select a local text file.
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Choose Text File");
             chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt", "*.*"));
@@ -281,6 +307,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private Tab createGenerateTab() {
+        // The generate tab controls the algorithm and generation limits. Output is shown in
+        // a read-only area first so the user can decide whether to copy it into the draft.
         algorithmBox = new ComboBox<>();
         algorithmBox.getItems().addAll(GenerationAlgorithm.WEIGHTED, GenerationAlgorithm.GREEDY);
         algorithmBox.setValue(GenerationAlgorithm.WEIGHTED);
@@ -303,6 +331,8 @@ public class SentenceBuilderApp extends Application {
 
         Button replaceDraftButton = new Button("Replace Draft with Output");
         replaceDraftButton.setOnAction(event -> {
+            // This explicitly replaces the draft. Generation itself may also append content,
+            // but replacement is kept separate to make the action obvious in the demo.
             if (generateOutputArea.getText().isBlank()) {
                 log("There is no generated output to copy into the draft.");
                 return;
@@ -339,6 +369,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private Tab createAutocompleteTab() {
+        // The autocomplete tab asks for a committed word and returns candidate next words.
+        // The user can click a suggestion to immediately append it to the draft.
         autocompleteCommittedWordField = new TextField();
         autocompleteCommittedWordField.setPromptText("Committed word. Leave blank to use the draft's last word.");
 
@@ -350,6 +382,8 @@ public class SentenceBuilderApp extends Application {
         suggestionsView.setPrefHeight(260);
         suggestionsView.setPlaceholder(new Label("Suggestions show up here after you request them."));
         suggestionsView.setOnMouseClicked(event -> {
+            // Clicking a suggestion both updates the draft and immediately refreshes the next
+            // round of suggestions, which makes the preview feel conversational and iterative.
             String selectedWord = suggestionsView.getSelectionModel().getSelectedItem();
             if (selectedWord != null && !selectedWord.isBlank()) {
                 appendWordToDraft(selectedWord);
@@ -360,6 +394,7 @@ public class SentenceBuilderApp extends Application {
 
         Button requestSuggestionsButton = new Button("Get Suggestions");
         requestSuggestionsButton.setOnAction(event -> {
+            // If the field is blank, autocomplete uses the last normalized word from the draft.
             String committedWord = autocompleteCommittedWordField.getText().isBlank()
                 ? getLastDraftWord()
                 : autocompleteCommittedWordField.getText();
@@ -377,6 +412,7 @@ public class SentenceBuilderApp extends Application {
 
         Button registerButton = new Button("Register Word");
         registerButton.setOnAction(event -> {
+            // This demonstrates the "ensure word exists" behavior in the autocomplete flow.
             try {
                 autocompleteController.registerUserWord(registerWordField.getText());
                 log("Registered autocomplete word: " + registerWordField.getText().trim());
@@ -412,6 +448,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private Tab createReportsTab() {
+        // Reports tab presents the demo's imported word statistics and generated sentence
+        // history so the user can inspect what the preview currently "knows."
         reportSortBox = new ComboBox<>();
         reportSortBox.getItems().addAll(WordReportSort.values());
         reportSortBox.setValue(WordReportSort.ALPHABETICAL);
@@ -464,6 +502,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private TableView<WordReportView> buildWordTable() {
+        // The table is intentionally read-only. It is a reporting surface, not an editor.
         TableView<WordReportView> table = new TableView<>(wordRows);
 
         TableColumn<WordReportView, String> wordColumn = new TableColumn<>("Word");
@@ -487,6 +526,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createActivityLogPane() {
+        // Activity log acts like a lightweight event stream for demo observers.
         activityLog.setEditable(false);
         activityLog.setWrapText(true);
         activityLog.setPrefRowCount(6);
@@ -498,6 +538,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void handleImport(String rawPath) {
+        // First validate using the real import controller so the UI preview follows the same
+        // input rules as the rest of the application.
         ImportViewState state = importController.validatePath(rawPath);
         importMessageLabel.setText(state.message());
 
@@ -508,6 +550,7 @@ public class SentenceBuilderApp extends Application {
 
         try {
             Path path = Path.of(rawPath.trim());
+            // Parse the file and move its data into the in-memory preview model.
             ParseResult result = previewParser.parse(path);
             demoState.load(result, path);
             importMessageLabel.setText("Loaded " + result.getFileName() + ". The generate, autocomplete, and reports tabs are now ready.");
@@ -526,6 +569,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void handleGenerate() {
+        // Blank start-word input means "continue from the current draft" when possible.
         String requestedStartWord = generateStartWordField.getText();
         String lastDraftWord = getLastDraftWord();
         boolean usingDraftContinuation = requestedStartWord == null || requestedStartWord.isBlank();
@@ -543,6 +587,7 @@ public class SentenceBuilderApp extends Application {
             return;
         }
 
+        // The generation tab always shows raw output first, even if the draft is also updated.
         generateOutputArea.setText(state.sentence());
         if (sentenceDraftArea.getText().isBlank()) {
             sentenceDraftArea.setText(state.sentence());
@@ -564,6 +609,8 @@ public class SentenceBuilderApp extends Application {
 
     private void requestSuggestions(String committedWord, char commitChar, int limit, boolean userInitiated) {
         try {
+            // The controller decides whether suggestions should be requested for the given
+            // committed character and returns UI-ready string suggestions.
             AutocompleteViewState state = autocompleteController.onWordCommitted(committedWord, commitChar, limit);
             suggestionsView.getItems().setAll(state.suggestions());
             if (state.suggestionsRequested()) {
@@ -581,6 +628,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void appendWordToDraft(String word) {
+        // Suggestions are appended with whitespace normalization so the draft stays readable.
         if (word == null || word.isBlank()) {
             return;
         }
@@ -595,6 +643,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void appendTextToDraft(String text) {
+        // Shared helper used when generated text should extend the existing draft.
         if (text == null || text.isBlank()) {
             return;
         }
@@ -607,6 +656,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void removeLastWordFromDraft() {
+        // Simple editing affordance for demo use when the user wants to backtrack one token.
         List<String> tokens = tokenizeDraft();
         if (tokens.isEmpty()) {
             log("Draft is already empty.");
@@ -618,6 +668,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private List<String> tokenizeDraft() {
+        // Draft tokenization is intentionally lightweight because this is just UI-side text
+        // manipulation, not the canonical parser pipeline.
         String trimmedDraft = sentenceDraftArea.getText().trim();
         if (trimmedDraft.isBlank()) {
             return new ArrayList<>();
@@ -626,6 +678,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private String getLastDraftWord() {
+        // Walk backward so trailing punctuation or blank fragments do not confuse downstream
+        // generation/autocomplete requests.
         List<String> tokens = tokenizeDraft();
         for (int i = tokens.size() - 1; i >= 0; i--) {
             String normalized = normalizer.normalize(tokens.get(i));
@@ -637,6 +691,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private String removeLeadingWord(String sentence, String expectedFirstWord) {
+        // When generation continues from the draft's last word, we remove the duplicated seed
+        // word before appending the continuation back into the draft.
         if (sentence == null || sentence.isBlank()) {
             return "";
         }
@@ -654,6 +710,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void refreshReports() {
+        // Refresh both reporting surfaces together so they always describe the same preview state.
         try {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
@@ -669,6 +726,8 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void refreshDraftMetadata() {
+        // The metadata labels coach the user on what the draft currently contains and how
+        // blank generate/autocomplete inputs will be interpreted.
         String lastWord = getLastDraftWord();
         if (lastWord.isBlank()) {
             draftStatusValue.setText("Draft is empty");
@@ -680,12 +739,14 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void setWorkspaceEnabled(boolean enabled) {
+        // Import tab remains available at all times; the others are gated by import success.
         generateTab.setDisable(!enabled);
         autocompleteTab.setDisable(!enabled);
         reportsTab.setDisable(!enabled);
     }
 
     private void updateSummary(ParseResult result) {
+        // Summary card mirrors the most recently imported parse statistics.
         activeFileValue.setText(result.getFileName());
         statsValue.setText(
             "Words " + result.getTotalWords()
@@ -695,6 +756,7 @@ public class SentenceBuilderApp extends Application {
     }
 
     private void log(String message) {
+        // Append-only log so observers can follow the demo session chronologically.
         if (activityLog.getText().isEmpty()) {
             activityLog.setText(message);
         } else {
@@ -731,11 +793,14 @@ public class SentenceBuilderApp extends Application {
 
         @Override
         public List<WeightedWord> findNextWordSuggestions(String normalizedWord, int limit) {
+            // Delegates directly into the preview state's in-memory next-word model.
             return state.findSuggestions(normalizedWord, limit);
         }
 
         @Override
         public void ensureWordExists(String normalizedWord) {
+            // Registration in the preview just adds the word to a local set so it can show up
+            // in reports without touching the database.
             state.registerWord(normalizedWord);
         }
     }
@@ -749,6 +814,7 @@ public class SentenceBuilderApp extends Application {
 
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit) {
+            // Reports are computed from the imported parse result plus any user-registered words.
             return state.listWords(sort, limit);
         }
 
@@ -759,6 +825,9 @@ public class SentenceBuilderApp extends Application {
     }
 
     private static final class DemoUiState {
+        // DemoUiState is the preview application's in-memory "model layer."
+        // It stores the imported parse result, generated sentence history, and user-registered
+        // autocomplete words so the UI can behave like a real app during demonstrations.
         private final Normalizer normalizer = new Normalizer();
         private final Random random = new Random();
         private ParseResult parseResult;
@@ -766,12 +835,14 @@ public class SentenceBuilderApp extends Application {
         private final Set<String> registeredWords = new LinkedHashSet<>();
 
         private void load(ParseResult result, Path sourcePath) {
+            // Loading a new file replaces the current preview state instead of merging it.
             this.parseResult = result;
             this.generatedSentences.clear();
             this.registeredWords.clear();
         }
 
         private String generateSentence(GenerationAlgorithm algorithm, String startWord, int maxWords) throws SQLException {
+            // Generation runs entirely against the imported parse result maps, not the database.
             if (parseResult == null) {
                 throw new SQLException("Import a file before generating sentences.");
             }
@@ -785,6 +856,7 @@ public class SentenceBuilderApp extends Application {
             generated.add(currentWord);
 
             while (generated.size() < maxWords) {
+                // Each step looks up the current word's possible transitions from ParseResult.
                 Map<String, Integer> nextWords = parseResult.getNextWordCounts().getOrDefault(currentWord, Map.of());
                 if (nextWords.isEmpty()) {
                     break;
@@ -801,11 +873,14 @@ public class SentenceBuilderApp extends Application {
             }
 
             String sentence = String.join(" ", generated);
+            // Generated sentences are saved in-memory so the reports tab can display history.
             generatedSentences.add(sentence);
             return sentence;
         }
 
         private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
+            // Prefer an explicit valid start word; otherwise fall back to sentence starts or,
+            // failing that, the most common word in the imported result.
             String normalizedStart = normalizer.normalize(startWord);
             if (!normalizedStart.isBlank() && parseResult.getWordCounts().containsKey(normalizedStart)) {
                 return normalizedStart;
@@ -822,6 +897,7 @@ public class SentenceBuilderApp extends Application {
         }
 
         private String chooseGreedy(Map<String, Integer> options) {
+            // Greedy mode is deterministic: highest count wins, then alphabetical tie-break.
             return options.entrySet().stream()
                 .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
                     .thenComparing(Map.Entry::getKey))
@@ -831,6 +907,7 @@ public class SentenceBuilderApp extends Application {
         }
 
         private String chooseWeighted(Map<String, Integer> options) {
+            // Weighted mode simulates probabilistic next-word selection using frequencies.
             int totalWeight = options.values().stream()
                 .filter(weight -> weight != null && weight > 0)
                 .mapToInt(Integer::intValue)
@@ -856,6 +933,8 @@ public class SentenceBuilderApp extends Application {
         }
 
         private List<WeightedWord> findSuggestions(String normalizedWord, int limit) {
+            // Suggestions come from the same next-word counts used for generation, but they are
+            // converted into WeightedWord records so the controller/service contract stays intact.
             if (parseResult == null || normalizedWord.isBlank()) {
                 return List.of();
             }
@@ -870,12 +949,16 @@ public class SentenceBuilderApp extends Application {
         }
 
         private void registerWord(String normalizedWord) {
+            // Registered words are tracked separately so they can appear in reports even if the
+            // imported file did not contain them.
             if (!normalizedWord.isBlank()) {
                 registeredWords.add(normalizedWord);
             }
         }
 
         private List<WordReportView> listWords(WordReportSort sort, int limit) {
+            // Reports blend imported word counts with registered words so the UI reflects both
+            // passive data (from the file) and active user interaction.
             if (parseResult == null) {
                 return List.of();
             }
@@ -906,6 +989,8 @@ public class SentenceBuilderApp extends Application {
         }
 
         private List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
+            // Duplicate filtering helps demonstrate whether repeated generation calls are
+            // converging on the same sentence.
             if (!onlyDuplicates) {
                 return generatedSentences.stream().limit(limit).toList();
             }
