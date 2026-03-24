@@ -7,9 +7,9 @@
 package parser;
 
 public record ImportPreparationResult(ImportPreparationStatus status, String fileHash, String message) {
+
     public boolean readyToImport() {
-        // Guidance:
         // Return true only when status is READY.
-        throw new UnsupportedOperationException("Not implemented yet");
+        return status == ImportPreparationStatus.READY;
     }
 }

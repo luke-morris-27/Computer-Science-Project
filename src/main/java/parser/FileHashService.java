@@ -7,14 +7,43 @@
 package parser;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class FileHashService {
-    public String sha256(Path file) throws IOException {
-        // Guidance:
-        // 1. Validate input path is non-null and points to a regular file.
-        // 2. Stream file bytes in chunks into a SHA-256 MessageDigest.
-        // 3. Return the digest as a lowercase 64-character hex string.
-        throw new UnsupportedOperationException("Not implemented yet");
+        public String sha256(Path file) throws IOException {
+        if (file == null) {
+            throw new IllegalArgumentException("file must not be null");
+        }
+        if (!Files.exists(file) || !Files.isRegularFile(file)) {
+            throw new IllegalArgumentException("file must exist and be a regular file: " + file);
+        }
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            try (InputStream in = Files.newInputStream(file);
+                 DigestInputStream dis = new DigestInputStream(in, digest)) {
+
+                byte[] buffer = new byte[8192];
+                while (dis.read(buffer) != -1) {
+                    // reading updates the digest
+                }
+            }
+
+            byte[] hashBytes = digest.digest();
+            StringBuilder sb = new StringBuilder(hashBytes.length * 2);
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
+
 }

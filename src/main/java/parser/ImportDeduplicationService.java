@@ -7,6 +7,7 @@
 package parser;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 
@@ -21,12 +22,34 @@ public class ImportDeduplicationService {
         this.fileHashService = fileHashService;
     }
 
-    public ImportPreparationResult prepare(Path file, ImportHashLookup hashLookup) throws IOException, SQLException {
-        // Guidance:
-        // 1. Validate file path exists and is a regular file.
-        // 2. Compute file hash via FileHashService.
-        // 3. Query hashLookup for duplicate status.
-        // 4. Return DUPLICATE result if found, otherwise READY result.
-        throw new UnsupportedOperationException("Not implemented yet");
+    public ImportPreparationResult prepare(Path file, ImportHashLookup hashLookup)
+            throws IOException, SQLException {
+
+        if (file == null) {
+            throw new IllegalArgumentException("file must not be null");
+        }
+        if (!Files.exists(file) || !Files.isRegularFile(file)) {
+            throw new IllegalArgumentException("file must exist and be a regular file: " + file);
+        }
+
+        // Compute hash for this file
+        String hash = fileHashService.sha256(file);
+
+        // Check if this hash already exists
+        boolean exists = hashLookup.existsByHash(hash);
+
+        if (exists) {
+            return new ImportPreparationResult(
+                    ImportPreparationStatus.DUPLICATE,
+                    hash,
+                    "File has already been imported"
+            );
+        } else {
+            return new ImportPreparationResult(
+                    ImportPreparationStatus.READY,
+                    hash,
+                    "File is new and ready for import"
+            );
+        }
     }
 }
