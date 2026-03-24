@@ -1,6 +1,6 @@
 /*
  * Class: WordFileStatsDao
- * Created by: Person 2
+ * Created by: Shriram Janardhan
  * Description: Performs batch upserts of per-file word statistics into word_file_stats.
  * Example: dao.upsertStats(fileId, statsRows)
  */
@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collection;
 
+// Code by Shriram Janardhan
 public class WordFileStatsDao {
     private final Connection conn;
 
@@ -45,3 +46,4 @@ public class WordFileStatsDao {
         }
     }
 }
+// End of code by Shriram Janardhan (WordFileStatsDao - batch upserts per-file word stats)

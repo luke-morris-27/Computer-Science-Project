@@ -1,6 +1,6 @@
 /*
  * Class: FileDao
- * Created by: Person 2
+ * Created by: Shriram Janardhan
  * Description: Upserts file-level metadata and returns a stable file_id for downstream stats writes.
  * Example: long fileId = dao.upsertFile(name, path, words, sentences)
  */
@@ -8,6 +8,7 @@ package db;
 
 import java.sql.*;
 
+// Code by Shriram Janardhan
 public class FileDao {
     private final Connection conn;
 
@@ -57,3 +58,4 @@ public class FileDao {
         }
     }
 }
+// End of code by Shriram Janardhan (FileDao - upserts file metadata)
