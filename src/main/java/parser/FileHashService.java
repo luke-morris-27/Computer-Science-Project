@@ -1,6 +1,6 @@
 /*
  * Class: FileHashService
- * Created by: Person 1
+ * Created by: Omesh Sana
  * Description: Computes a deterministic SHA-256 hash for a file so duplicate imports can be detected by content.
  * Example: String hash = new FileHashService().sha256(Path.of("book.txt"));
  */

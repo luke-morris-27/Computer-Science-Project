@@ -1,6 +1,6 @@
 /*
  * Class: ImportHashLookup
- * Created by: Person 1
+ * Created by: Omesh Sana
  * Description: Contract for checking whether a file hash already exists in persistent storage.
  * Example: hash -> importDao.existsByHash(hash)
  */

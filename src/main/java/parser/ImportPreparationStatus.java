@@ -1,6 +1,6 @@
 /*
  * Class: ImportPreparationStatus
- * Created by: Person 1
+ * Created by: Omesh Sana
  * Description: Represents whether an import can proceed after file-hash deduplication checks.
  * Example: ImportPreparationStatus.READY
  */

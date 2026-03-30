@@ -1,6 +1,6 @@
 /*
  * Class: ImportDao
- * Created by: Person 1
+ * Created by: Omesh Sana
  * Description: Reads and writes import metadata rows, especially for file_hash duplicate checks.
  * Example: boolean seen = new ImportDao(conn).existsByHash(hash)
  */
