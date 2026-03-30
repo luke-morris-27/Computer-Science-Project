@@ -37,6 +37,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
@@ -47,6 +48,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -86,6 +89,9 @@ public class SentenceBuilderApp extends Application {
     private final Label importMessageLabel = createValueLabel("Step 1: import a text file to unlock the rest of the workspace.");
     private final Label draftStatusValue = createValueLabel("Draft is empty");
     private final Label draftHelpValue = createValueLabel("Click autocomplete suggestions to build a sentence here.");
+    private final Label draftSuggestionValue = createValueLabel("Top suggestion will appear here while you type in the draft.");
+    private final Label autocompleteStatusValue = createValueLabel("Suggestions will appear here after you request them.");
+    private final Label autocompletePlaceholderLabel = createValueLabel("Suggestions show up here after you request them.");
     private final TextArea activityLog = new TextArea();
     private final TextArea sentenceDraftArea = new TextArea();
 
@@ -107,6 +113,12 @@ public class SentenceBuilderApp extends Application {
     private Spinner<Integer> reportWordLimitSpinner;
     private Spinner<Integer> reportSentenceLimitSpinner;
     private CheckBox duplicatesOnlyCheckBox;
+    private String draftTopSuggestion = "";
+
+    // sammy 3/30: reuses the same empty-state message whenever autocomplete is reset after startup or a new import.
+    private static final String DEFAULT_AUTOCOMPLETE_MESSAGE = "Suggestions show up here after you request them.";
+    // sammy 3/30: keeps the live draft hint clear when there is not a suggestion ready to accept with tab.
+    private static final String DEFAULT_DRAFT_SUGGESTION_MESSAGE = "Top suggestion will appear here while you type in the draft.";
 
     public static void main(String[] args) {
         launch(args);
@@ -186,13 +198,24 @@ public class SentenceBuilderApp extends Application {
 
     private VBox createDraftPane() {
         Label title = titledLabel("Sentence Draft");
-        Label instructions = new Label("Type directly or single-click an autocomplete suggestion to append it.");
+        Label instructions = new Label("Type directly, single-click an autocomplete suggestion, or press Tab to accept the top draft suggestion.");
         instructions.setWrapText(true);
 
         sentenceDraftArea.setWrapText(true);
         sentenceDraftArea.setPromptText("Your working sentence lives here...");
         sentenceDraftArea.setPrefRowCount(12);
-        sentenceDraftArea.textProperty().addListener((obs, oldValue, newValue) -> refreshDraftMetadata());
+        // sammy 3/30: refreshes the draft status and the live top suggestion every time the user edits the draft.
+        sentenceDraftArea.textProperty().addListener((obs, oldValue, newValue) -> {
+            refreshDraftMetadata();
+            refreshDraftSuggestionPreview();
+        });
+        sentenceDraftArea.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.TAB && !draftTopSuggestion.isBlank()) {
+                // sammy 3/30: lets tab accept the current top suggestion instead of inserting tab characters into the draft.
+                event.consume();
+                applySuggestionSelection(draftTopSuggestion);
+            }
+        });
 
         Button useLastWordForSuggestionsButton = new Button("Use Last Word for Suggestions");
         useLastWordForSuggestionsButton.setOnAction(event -> {
@@ -238,6 +261,7 @@ public class SentenceBuilderApp extends Application {
             sentenceDraftArea,
             draftStatusValue,
             draftHelpValue,
+            draftSuggestionValue,
             actions
         );
         box.setPadding(new Insets(22));
@@ -353,15 +377,8 @@ public class SentenceBuilderApp extends Application {
 
         suggestionsView = new ListView<>();
         suggestionsView.setPrefHeight(260);
-        suggestionsView.setPlaceholder(new Label("Suggestions show up here after you request them."));
-        suggestionsView.setOnMouseClicked(event -> {
-            String selectedWord = suggestionsView.getSelectionModel().getSelectedItem();
-            if (selectedWord != null && !selectedWord.isBlank()) {
-                appendWordToDraft(selectedWord);
-                autocompleteCommittedWordField.setText(selectedWord);
-                requestSuggestions(selectedWord, ' ', suggestionLimitSpinner.getValue(), false);
-            }
-        });
+        suggestionsView.setPlaceholder(autocompletePlaceholderLabel);
+        suggestionsView.setCellFactory(listView -> createSuggestionCell());
 
         Button requestSuggestionsButton = new Button("Get Suggestions");
         requestSuggestionsButton.setOnAction(event -> {
@@ -369,7 +386,10 @@ public class SentenceBuilderApp extends Application {
                 ? getLastDraftWord()
                 : autocompleteCommittedWordField.getText();
             if (committedWord.isBlank()) {
-                log("There is no word available to request suggestions from yet.");
+                // sammy 3/30: shows the same blank-input feedback in the ui that the controller uses for other autocomplete states.
+                AutocompleteViewState blankState = AutocompleteViewState.blankInput();
+                renderAutocompleteState(blankState);
+                log(blankState.feedbackMessage());
                 return;
             }
             autocompleteCommittedWordField.setText(committedWord);
@@ -404,9 +424,10 @@ public class SentenceBuilderApp extends Application {
 
         VBox content = new VBox(18,
             titledLabel("Autocomplete"),
-            new Label("Single-click a suggestion to append it to the draft sentence and immediately load the next suggestions."),
+            new Label("Single-click a ranked suggestion to append it to the draft sentence and immediately load the next suggestions."),
             form,
             requestSuggestionsButton,
+            autocompleteStatusValue,
             suggestionsView,
             new HBox(10, registerWordField, registerButton)
         );
@@ -523,7 +544,8 @@ public class SentenceBuilderApp extends Application {
             sentenceDraftArea.clear();
             generateOutputArea.clear();
             autocompleteCommittedWordField.clear();
-            suggestionsView.getItems().clear();
+            resetAutocompleteSuggestions();
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
             refreshReports();
             log("Imported " + result.getFileName() + " at " + IMPORT_TIME_FORMATTER.format(result.getImportedAt()) + ".");
         } catch (IOException exception) {
@@ -572,15 +594,11 @@ public class SentenceBuilderApp extends Application {
     private void requestSuggestions(String committedWord, char commitChar, int limit, boolean userInitiated) {
         try {
             AutocompleteViewState state = autocompleteController.onWordCommitted(committedWord, commitChar, limit);
-            suggestionsView.getItems().setAll(state.suggestions());
-            if (state.suggestionsRequested()) {
-                if (state.suggestions().isEmpty()) {
-                    log("No suggestions found after '" + committedWord + "'.");
-                } else if (userInitiated) {
-                    log("Loaded " + state.suggestions().size() + " suggestions after '" + committedWord + "'.");
-                }
-            } else if (userInitiated) {
-                log("Autocomplete skipped because '" + commitChar + "' is not a trigger character.");
+            renderAutocompleteState(state);
+
+            // sammy 3/30: keeps automatic follow-up suggestion refreshes quiet unless they end with no suggestions.
+            if (shouldLogAutocompleteState(state, userInitiated)) {
+                log(state.feedbackMessage());
             }
         } catch (SQLException exception) {
             log("Autocomplete failed: " + exception.getMessage());
@@ -598,6 +616,8 @@ public class SentenceBuilderApp extends Application {
         } else {
             sentenceDraftArea.setText(currentDraft + " " + word.trim());
         }
+        // sammy 3/30: moves the caret to the end so the draft still feels correct if the user wants to keep typing.
+        sentenceDraftArea.positionCaret(sentenceDraftArea.getText().length());
         log("Added suggestion to draft: " + word);
     }
 
@@ -666,6 +686,118 @@ public class SentenceBuilderApp extends Application {
             case "Period" -> '.';
             default -> ' ';
         };
+    }
+
+    // sammy 3/30: keeps the draft pane showing the best next-word suggestion while the user types in the draft.
+    private void refreshDraftSuggestionPreview() {
+        if (autocompleteTab == null || autocompleteTab.isDisabled()) {
+            clearDraftSuggestionPreview("Import a file to see live draft suggestions.");
+            return;
+        }
+
+        String lastWord = getLastDraftWord();
+        if (lastWord.isBlank()) {
+            resetAutocompleteSuggestions();
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+            return;
+        }
+
+        try {
+            AutocompleteViewState state = autocompleteController.onWordCommitted(
+                lastWord,
+                ' ',
+                suggestionLimitSpinner == null ? 5 : suggestionLimitSpinner.getValue()
+            );
+            renderAutocompleteState(state);
+
+            // sammy 3/30: surfaces only the first suggestion as the quick tab-to-accept preview in the draft pane.
+            if (state.hasSuggestions()) {
+                draftTopSuggestion = state.suggestions().get(0);
+                draftSuggestionValue.setText("Top suggestion: " + draftTopSuggestion + " (press Tab to accept)");
+            } else if (state.outcome() == AutocompleteViewState.AutocompleteOutcome.NO_RESULTS) {
+                clearDraftSuggestionPreview("No top suggestion found after '" + lastWord + "'.");
+            } else {
+                clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+            }
+        } catch (SQLException exception) {
+            clearDraftSuggestionPreview("Live suggestions failed: " + exception.getMessage());
+        }
+    }
+
+    // sammy 3/30: renders each suggestion as a ranked row and ignores clicks on empty space inside the list view.
+    private ListCell<String> createSuggestionCell() {
+        ListCell<String> cell = new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+
+                // sammy 3/30: shows the service-provided order directly in the ui so users can see the ranking clearly.
+                setText((getIndex() + 1) + ". " + item);
+            }
+        };
+
+        cell.setOnMouseClicked(event -> {
+            if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1 || cell.isEmpty()) {
+                return;
+            }
+
+            applySuggestionSelection(cell.getItem());
+        });
+        return cell;
+    }
+
+    // sammy 3/30: keeps the click flow in one place so adding a suggestion and loading the next list stay in sync.
+    private void applySuggestionSelection(String selectedWord) {
+        if (selectedWord == null || selectedWord.isBlank()) {
+            return;
+        }
+
+        appendWordToDraft(selectedWord);
+        autocompleteCommittedWordField.setText(selectedWord);
+        suggestionsView.getSelectionModel().clearSelection();
+        requestSuggestions(selectedWord, ' ', suggestionLimitSpinner.getValue(), false);
+    }
+
+    // sammy 3/30: updates the list, empty-state text, and status label together so autocomplete feedback stays consistent.
+    private void renderAutocompleteState(AutocompleteViewState state) {
+        suggestionsView.getItems().setAll(state.suggestions());
+        suggestionsView.getSelectionModel().clearSelection();
+        autocompleteStatusValue.setText(state.feedbackMessage());
+
+        if (state.hasSuggestions()) {
+            autocompletePlaceholderLabel.setText("Suggestions are ready. Click one to keep building your draft.");
+            suggestionsView.scrollTo(0);
+            return;
+        }
+
+        autocompletePlaceholderLabel.setText(state.feedbackMessage().isBlank() ? DEFAULT_AUTOCOMPLETE_MESSAGE : state.feedbackMessage());
+    }
+
+    // sammy 3/30: avoids noisy log spam while still surfacing important autocomplete outcomes to the activity log.
+    private boolean shouldLogAutocompleteState(AutocompleteViewState state, boolean userInitiated) {
+        return switch (state.outcome()) {
+            case SHOW_RESULTS, SKIPPED_TRIGGER, BLANK_INPUT -> userInitiated;
+            case NO_RESULTS -> true;
+        };
+    }
+
+    // sammy 3/30: restores the default autocomplete messaging when a new import clears the current suggestion session.
+    private void resetAutocompleteSuggestions() {
+        suggestionsView.getItems().clear();
+        suggestionsView.getSelectionModel().clearSelection();
+        autocompleteStatusValue.setText(DEFAULT_AUTOCOMPLETE_MESSAGE);
+        autocompletePlaceholderLabel.setText(DEFAULT_AUTOCOMPLETE_MESSAGE);
+    }
+
+    // sammy 3/30: clears the saved tab suggestion and replaces it with a plain-language hint for the draft pane.
+    private void clearDraftSuggestionPreview(String message) {
+        draftTopSuggestion = "";
+        draftSuggestionValue.setText(message);
     }
 
     private void refreshReports() {
