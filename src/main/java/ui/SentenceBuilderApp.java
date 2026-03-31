@@ -820,6 +820,11 @@ public class SentenceBuilderApp extends Application {
             this.state = state;
         }
 
+        @Override public List<WordReportView> listWords(WordReportSort sort, int limit) { 
+            // Reports are computed from the imported parse result plus any user-registered words. 
+            return state.listWords(sort, limit); 
+        }
+        
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) {
             // Reports are computed from the imported parse result plus any user-registered words.
