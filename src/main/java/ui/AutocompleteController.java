@@ -23,8 +23,13 @@ public class AutocompleteController {
 
     // handles a committed word and returns suggestion state for the ui
     public AutocompleteViewState onWordCommitted(String committedWord, char commitChar, int limit) throws SQLException {
+        // sammy 3/30: keeps blank input from looking like a real autocomplete miss in the ui.
+        if (committedWord == null || committedWord.isBlank()) {
+            return AutocompleteViewState.blankInput();
+        }
+
         if (!autocompleteService.shouldQuerySuggestions(commitChar)) {
-            return new AutocompleteViewState(false, List.of());
+            return AutocompleteViewState.skippedTrigger(commitChar);
         }
 
         List<WeightedWord> weightedSuggestions = autocompleteService.suggestNextWords(committedWord, limit);
@@ -33,7 +38,14 @@ public class AutocompleteController {
         List<String> suggestions = weightedSuggestions.stream()
             .map(WeightedWord::wordText)
             .toList();
-        return new AutocompleteViewState(true, suggestions);
+
+        // sammy 3/30: tells the ui when a real lookup happened but there were simply no next words to show.
+        if (suggestions.isEmpty()) {
+            return AutocompleteViewState.noResults(committedWord.trim());
+        }
+
+        // sammy 3/30: returns suggestions in the same order supplied by the service layer.
+        return AutocompleteViewState.showingSuggestions(committedWord.trim(), suggestions);
     }
 
     // sends a new user word to the service

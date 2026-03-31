@@ -56,7 +56,11 @@ class UiFlowSmokeTest {
         assertTrue(generateState.success());
 
         AutocompleteViewState autocompleteState = autocompleteController.onWordCommitted("hello", ' ', 3);
+        assertEquals(AutocompleteViewState.AutocompleteOutcome.SHOW_RESULTS, autocompleteState.outcome());
+        assertTrue(autocompleteState.suggestionsRequested());
+        assertTrue(autocompleteState.hasSuggestions());
         assertEquals(List.of("world"), autocompleteState.suggestions());
+        assertEquals("Loaded 1 suggestions after 'hello'.", autocompleteState.feedbackMessage());
 
         List<WordReportView> report = reportsController.listWords(WordReportSort.ALPHABETICAL, 10);
         assertEquals(1, report.size());
