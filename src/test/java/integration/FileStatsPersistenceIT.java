@@ -21,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * Tests for Task 1, Person 2.
+ * Created by: Shriram Janardhan
  */
+// Code by Shriram Janardhan
 @Tag("integration")
 @Tag("task1-person2")
 @DisplayName("File Stats Persistence Integration Tests")
@@ -93,3 +95,4 @@ class FileStatsPersistenceIT extends DatabaseIntegrationTestSupport {
         }
     }
 }
+// End of code by Shriram Janardhan (FileStatsPersistenceIT)

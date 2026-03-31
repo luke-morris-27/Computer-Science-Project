@@ -12,7 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /*
  * Tests for Task 1, Person 2.
+ * Created by: Shriram Janardhan
  */
+// Code by Shriram Janardhan
 @Tag("unit")
 @Tag("task1-person2")
 @DisplayName("File Stats Persistence Service Unit Tests")
@@ -43,3 +45,4 @@ class FileStatsPersistenceServiceTest {
         assertEquals(1, aggregates.get("beta").endInFile());
     }
 }
+// End of code by Shriram Janardhan (FileStatsPersistenceServiceTest)

@@ -41,6 +41,25 @@ class AutocompleteDaoIT extends DatabaseIntegrationTestSupport {
         assertEquals("world", suggestions.get(1).wordText());
     }
 
+    // Code by Shriram
+    @Test
+    @DisplayName("Tied transition counts are broken alphabetically")
+    void tiedCountsOrderedAlphabetically() throws Exception {
+        int fromId = insertWord("hello");
+        int zebraId = insertWord("zebra");
+        int appleId = insertWord("apple");
+        insertTransition(fromId, zebraId, 3);
+        insertTransition(fromId, appleId, 3);
+
+        AutocompleteDao dao = new AutocompleteDao();
+        List<WeightedWord> suggestions = dao.findNextWordSuggestions("hello", 10);
+
+        assertEquals(2, suggestions.size());
+        assertEquals("apple", suggestions.get(0).wordText());
+        assertEquals("zebra", suggestions.get(1).wordText());
+    }
+    // End of Code by Shriram
+
     @Test
     @DisplayName("ensureWordExists inserts missing words")
     void ensureWordExistsInsertsMissingWord() throws Exception {

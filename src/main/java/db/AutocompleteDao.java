@@ -29,6 +29,7 @@ public class AutocompleteDao implements AutocompleteGateway {
             return List.of();
         }
 
+        // Code by Shriram
         // opens the database and runs the autocomplete query
         try (Connection conn = WordDb.openConnection();
              PreparedStatement ps = conn.prepareStatement(
@@ -37,7 +38,7 @@ public class AutocompleteDao implements AutocompleteGateway {
                      "JOIN next_word nw ON nw.from_word_id = current_words.word_id " +
                      "JOIN words next_words ON next_words.word_id = nw.to_word_id " +
                      "WHERE current_words.word_text = ? " +
-                     "ORDER BY nw.transition_count DESC, next_words.word_id ASC " +
+                     "ORDER BY nw.transition_count DESC, next_words.word_text ASC " +
                      "LIMIT ?"
              )) {
             ps.setString(1, normalizedWord);
@@ -58,6 +59,7 @@ public class AutocompleteDao implements AutocompleteGateway {
                 return suggestions;
             }
         }
+        // End of Code by Shriram
     }
 
     @Override

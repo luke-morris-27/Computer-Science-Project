@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
@@ -48,6 +49,40 @@ class AutocompleteServiceTest {
         assertEquals(5, gateway.lastLimit);
         assertEquals(1, result.size());
     }
+
+    // Code by Shriram
+    @Test
+    @DisplayName("Blank input returns empty suggestion list")
+    void blankInputReturnsEmpty() throws Exception {
+        AutocompleteService service = new AutocompleteService(new FakeGateway());
+
+        assertTrue(service.suggestNextWords("   ", 5).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Null input returns empty suggestion list")
+    void nullInputReturnsEmpty() throws Exception {
+        AutocompleteService service = new AutocompleteService(new FakeGateway());
+
+        assertTrue(service.suggestNextWords(null, 5).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Zero limit throws IllegalArgumentException")
+    void zeroLimitThrows() {
+        AutocompleteService service = new AutocompleteService(new FakeGateway());
+
+        assertThrows(IllegalArgumentException.class, () -> service.suggestNextWords("hello", 0));
+    }
+
+    @Test
+    @DisplayName("Negative limit throws IllegalArgumentException")
+    void negativeLimitThrows() {
+        AutocompleteService service = new AutocompleteService(new FakeGateway());
+
+        assertThrows(IllegalArgumentException.class, () -> service.suggestNextWords("hello", -1));
+    }
+    // End of Code by Shriram
 
     @Test
     @DisplayName("Unknown word registration normalizes and stores")

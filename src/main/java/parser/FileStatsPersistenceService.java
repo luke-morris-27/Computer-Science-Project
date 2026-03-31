@@ -1,6 +1,6 @@
 /*
  * Class: FileStatsPersistenceService
- * Created by: Person 2
+ * Created by: Shriram Janardhan
  * Description: Persists file metadata and per-file word counts derived from ParseResult into relational tables.
  * Example: long fileId = service.persist(path, parseResult, connection)
  */
@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.sql.*;
 import java.util.*;
 
+// Code by Shriram Janardhan
 public class FileStatsPersistenceService {
     private final FileDao fileDao;
     private final WordFileStatsDao wordFileStatsDao;
@@ -38,34 +39,22 @@ public class FileStatsPersistenceService {
         // 2. Build word statistics
         Map<String, WordStatsAggregate> stats = buildWordStats(result);
 
-        // 3. Resolve words to word_ids
+        // 3. Resolve words to word_ids - getOrCreate ensures words exist even if parser skipped DB writes
         List<WordFileStatInput> rows = new ArrayList<>();
 
-        String lookupSql = "SELECT word_id FROM words WHERE word_text = ?";
+        for (Map.Entry<String, WordStatsAggregate> entry : stats.entrySet()) {
 
-        try (PreparedStatement ps = conn.prepareStatement(lookupSql)) {
+            String word = entry.getKey();
+            WordStatsAggregate agg = entry.getValue();
 
-            for (Map.Entry<String, WordStatsAggregate> entry : stats.entrySet()) {
+            int wordId = WordDb.getOrCreateWordId(word, conn);
 
-                String word = entry.getKey();
-                WordStatsAggregate agg = entry.getValue();
-
-                ps.setString(1, word);
-
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-
-                        int wordId = rs.getInt("word_id");
-
-                        rows.add(new WordFileStatInput(
-                                wordId,
-                                agg.countInFile(),
-                                agg.startInFile(),
-                                agg.endInFile()
-                        ));
-                    }
-                }
-            }
+            rows.add(new WordFileStatInput(
+                    wordId,
+                    agg.countInFile(),
+                    agg.startInFile(),
+                    agg.endInFile()
+            ));
         }
 
         // 4. Batch upsert
@@ -95,3 +84,4 @@ public class FileStatsPersistenceService {
         return stats;
     }
 }
+// End of code by Shriram Janardhan (FileStatsPersistenceService - file and word_file_stats persistence)
