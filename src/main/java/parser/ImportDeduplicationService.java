@@ -1,6 +1,6 @@
 /*
  * Class: ImportDeduplicationService
- * Created by: Person 1
+ * Created by: Omesh Sana
  * Description: Validates import input and determines whether the file content is new or already imported.
  * Example: service.prepare(path, hash -> dao.existsByHash(hash))
  */

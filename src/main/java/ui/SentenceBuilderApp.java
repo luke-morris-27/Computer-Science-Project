@@ -1,9 +1,19 @@
 /*
  * Class: SentenceBuilderApp
- * Created by: Archisha Sasson
- * Description: JavaFX preview application that surfaces the current ui package
+ * Original author: Archisha Sasson
+ * Modified by: Omesh
+ *
+ * Contributions:
+ * - Original JavaFX preview application and import/generate/autocomplete/reports workflow by Archisha Sasson.
+ * - UI layout refinements, responsive resizing behavior, draft pane improvements,
+ *   import help/instructions, and fullscreen spacing polish by Omesh.
+ *
+ * Description:
+ * JavaFX preview application that surfaces the current ui package
  * progress through an import-first, draft-driven workflow.
- * Example: mvn javafx:run
+ *
+ * Example:
+ * mvn javafx:run
  */
 package ui;
 
@@ -27,6 +37,7 @@ import generator.AutocompleteService;
 import generator.GenerationAlgorithm;
 import generator.GenerationService;
 import generator.WeightedWord;
+import javafx.application.Application;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -40,7 +51,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -55,7 +65,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.application.Application;
 import parser.Normalizer;
 import parser.ParseResult;
 import parser.TextParser;
@@ -124,22 +133,32 @@ public class SentenceBuilderApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        // Build the multi-tab workspace first so it can be dropped into the main split view.
         TabPane workspaceTabs = createWorkspaceTabs(stage);
 
-        // Left side: import/generate/autocomplete/report tabs.
-        // Right side: sentence draft panel that acts as the user's working canvas.
-        SplitPane splitPane = new SplitPane(workspaceTabs, createDraftPane());
-        splitPane.setDividerPositions(0.7);
+        workspaceTabs.setPrefWidth(930);
+        workspaceTabs.setMinWidth(820);
+        workspaceTabs.setMaxWidth(980);
+
+        VBox draftPane = createDraftPane();
+        draftPane.setPrefWidth(400);
+        draftPane.setMinWidth(360);
+        draftPane.setMaxWidth(430);
+
+        Region middleGap = new Region();
+        HBox.setHgrow(middleGap, Priority.ALWAYS);
+
+        HBox mainRow = new HBox(18, workspaceTabs, middleGap, draftPane);
+        mainRow.setAlignment(Pos.TOP_LEFT);
+
+        VBox centerColumn = new VBox(16, createHeader(), mainRow, createActivityLogPane());
+        VBox.setVgrow(mainRow, Priority.ALWAYS);   
+        centerColumn.setPadding(new Insets(22, 28, 22, 28));
+        centerColumn.setFillWidth(true);
+        centerColumn.setMaxWidth(Double.MAX_VALUE);
 
         BorderPane root = new BorderPane();
-        // The root layout is intentionally simple:
-        // top = project header,
-        // center = main workspace,
-        // bottom = activity log.
-        root.setTop(createHeader());
-        root.setCenter(splitPane);
-        root.setBottom(createActivityLogPane());
+        root.setPadding(new Insets(18, 20, 18, 20));
+        root.setCenter(centerColumn);
         root.setStyle(
             "-fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #f7efe3, #efe2d1);" +
             "-fx-font-family: 'Georgia';"
@@ -148,9 +167,12 @@ public class SentenceBuilderApp extends Application {
         Scene scene = new Scene(root, 1320, 860);
         stage.setTitle("Team 43: Sentence Builder");
         stage.setScene(scene);
+        stage.setMinWidth(1100);
+        stage.setMinHeight(760);
         stage.show();
 
-        // The workflow is import-first, so most tabs stay disabled until a file is loaded.
+        workspaceTabs.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(workspaceTabs, Priority.ALWAYS);
         setWorkspaceEnabled(false);
         refreshDraftMetadata();
         refreshReports();
@@ -174,23 +196,23 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createHeader() {
-        // Header card summarizes the currently imported file and basic parse counts.
         Label title = new Label("Team 43: Sentence Builder");
-        title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
+        title.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
 
         Label subtitle = new Label("Interactive workspace for import, generation, autocomplete, and reports.");
-        subtitle.setStyle("-fx-font-size: 15px; -fx-text-fill: #8a3a46;");
+        subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #8a3a46;");
 
-        VBox summaryCard = new VBox(6,
-            new Label("Active Import"),
-            activeFileValue,
-            statsValue
-        );
-        summaryCard.setPadding(new Insets(14));
+        Label importLabel = new Label("Active Import");
+        importLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
+
+        VBox summaryCard = new VBox(5, importLabel, activeFileValue, statsValue);
+        summaryCard.setPadding(new Insets(12, 16, 12, 16));
+        summaryCard.setPrefWidth(220);
+        summaryCard.setMaxWidth(260);
         summaryCard.setStyle(
-            "-fx-background-color: rgba(255,248,240,0.88);" +
+            "-fx-background-color: rgba(255,248,240,0.90);" +
             "-fx-background-radius: 14;" +
-            "-fx-border-color: rgba(111,29,42,0.20);" +
+            "-fx-border-color: rgba(111,29,42,0.18);" +
             "-fx-border-radius: 14;"
         );
 
@@ -198,9 +220,10 @@ public class SentenceBuilderApp extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox topBar = new HBox(20, heading, spacer, summaryCard);
+        HBox topBar = new HBox(18, heading, spacer, summaryCard);
         topBar.setAlignment(Pos.CENTER_LEFT);
-        topBar.setPadding(new Insets(18, 22, 18, 22));
+        topBar.setPadding(new Insets(0, 0, 4, 0));
+
         return new VBox(topBar);
     }
 
@@ -212,10 +235,13 @@ public class SentenceBuilderApp extends Application {
 
         sentenceDraftArea.setWrapText(true);
         sentenceDraftArea.setPromptText("Your working sentence lives here...");
-        sentenceDraftArea.setPrefRowCount(12);
+        sentenceDraftArea.setPrefRowCount(10);
+        sentenceDraftArea.setPrefHeight(260);
+        sentenceDraftArea.setMinHeight(220);
+        sentenceDraftArea.setMaxHeight(420);
         sentenceDraftArea.textProperty().addListener((obs, oldValue, newValue) -> refreshDraftMetadata());
 
-        Button useLastWordForSuggestionsButton = new Button("Use Last Word for Suggestions");
+        Button useLastWordForSuggestionsButton = new Button("Suggest from Last");
         useLastWordForSuggestionsButton.setOnAction(event -> {
             // This lets the user continue autocomplete from the current sentence draft rather
             // than manually copying the final word into the autocomplete form.
@@ -228,7 +254,7 @@ public class SentenceBuilderApp extends Application {
                 requestSuggestions(lastWord, ' ', suggestionLimitSpinner.getValue(), true);
         });
 
-        Button useLastWordForGenerationButton = new Button("Use Last Word for Generation");
+        Button useLastWordForGenerationButton = new Button("Generate from Last");
         useLastWordForGenerationButton.setOnAction(event -> {
             // Same idea as the suggestions button above, but for sentence generation.
             String lastWord = getLastDraftWord();
@@ -249,14 +275,22 @@ public class SentenceBuilderApp extends Application {
             log("Draft cleared.");
         });
 
-        HBox actions = new HBox(10,
-            useLastWordForSuggestionsButton,
-            useLastWordForGenerationButton,
-            removeLastWordButton,
-            clearDraftButton
-        );
+        useLastWordForSuggestionsButton.setMaxWidth(Double.MAX_VALUE);
+        useLastWordForGenerationButton.setMaxWidth(Double.MAX_VALUE);
+        removeLastWordButton.setMaxWidth(Double.MAX_VALUE);
+        clearDraftButton.setMaxWidth(Double.MAX_VALUE);
 
-        VBox box = new VBox(14,
+        HBox row1 = new HBox(8, useLastWordForSuggestionsButton, useLastWordForGenerationButton);
+        HBox row2 = new HBox(8, removeLastWordButton, clearDraftButton);
+
+        HBox.setHgrow(useLastWordForSuggestionsButton, Priority.ALWAYS);
+        HBox.setHgrow(useLastWordForGenerationButton, Priority.ALWAYS);
+        HBox.setHgrow(removeLastWordButton, Priority.ALWAYS);
+        HBox.setHgrow(clearDraftButton, Priority.ALWAYS);
+
+        VBox actions = new VBox(8, row1, row2);
+
+        VBox box = new VBox(12,
             title,
             instructions,
             sentenceDraftArea,
@@ -264,7 +298,10 @@ public class SentenceBuilderApp extends Application {
             draftHelpValue,
             actions
         );
-        box.setPadding(new Insets(22));
+        box.setPadding(new Insets(18));
+        box.setPrefWidth(380);
+        box.setMinWidth(320);
+        box.setMaxWidth(430);
         box.setStyle(cardStyle("#fff7ee"));
         VBox.setVgrow(sentenceDraftArea, Priority.ALWAYS);
         return box;
@@ -286,22 +323,57 @@ public class SentenceBuilderApp extends Application {
                 pathField.setText(selectedFile.getAbsolutePath());
             }
         });
-
+        
         Button loadButton = new Button("Validate and Load");
         loadButton.setOnAction(event -> handleImport(pathField.getText()));
 
-        VBox steps = new VBox(8,
+        HBox fileRow = new HBox(10, pathField, browseButton, loadButton);
+        fileRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label requirementsTitle = new Label("File requirements");
+        requirementsTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
+
+        Label requirementsBody = new Label(
+            "Use a plain .txt file containing normal readable text.\n" +
+            "Good examples: copied article text, notes, paragraphs, short stories, or sample writing.\n" +
+            "Do not use: PDF files, Word documents, images, or empty files.\n" +
+            "After import, the app will count words/sentences and use that text for generation and autocomplete."
+        );
+        requirementsBody.setWrapText(true);
+        requirementsBody.setStyle("-fx-text-fill: #6b3a42;");
+
+        VBox helpBox = new VBox(8, requirementsTitle, requirementsBody);
+        helpBox.setPadding(new Insets(14));
+        helpBox.setStyle(
+            "-fx-background-color: rgba(255,250,244,0.85);" +
+            "-fx-background-radius: 12;" +
+            "-fx-border-color: rgba(111,29,42,0.12);" +
+            "-fx-border-radius: 12;"
+        );
+
+        VBox steps = new VBox(12,
             titledLabel("Import Preview"),
             new Label("1. Choose a text file."),
             new Label("2. Load it into the in-memory preview."),
             new Label("3. Use Generate and Autocomplete to build sentences from that imported data."),
-            new HBox(10, pathField, browseButton, loadButton),
-            importMessageLabel
+            fileRow,
+            importMessageLabel,
+            helpBox
         );
-        steps.setPadding(new Insets(22));
+        steps.setPadding(new Insets(18));
         steps.setStyle(cardStyle("#fdf4ea"));
+        steps.setMaxWidth(920);
+        steps.setFillWidth(true);
 
-        Tab tab = new Tab("Import", steps);
+        VBox wrapper = new VBox(steps);
+        wrapper.setFillWidth(true);
+        wrapper.setMaxWidth(Double.MAX_VALUE);
+        VBox.setVgrow(steps, Priority.ALWAYS);
+
+        steps.setMaxWidth(Double.MAX_VALUE);
+        steps.setPrefWidth(Region.USE_COMPUTED_SIZE);
+
+        Tab tab = new Tab("Import", wrapper);
         tab.setClosable(false);
         return tab;
     }
@@ -353,14 +425,14 @@ public class SentenceBuilderApp extends Application {
 
         HBox buttonRow = new HBox(10, generateButton, replaceDraftButton);
 
-        VBox content = new VBox(18,
+        VBox content = new VBox(14,
             titledLabel("Sentence Generation"),
             new Label("Leave the start word blank and the app will continue from the last word in your draft when possible."),
             form,
             buttonRow,
             generateOutputArea
         );
-        content.setPadding(new Insets(22));
+        content.setPadding(new Insets(18));
         content.setStyle(cardStyle("#f9eee6"));
 
         Tab tab = new Tab("Generate", content);
@@ -431,7 +503,7 @@ public class SentenceBuilderApp extends Application {
         form.add(new Label("Suggestion limit"), 0, 1);
         form.add(suggestionLimitSpinner, 1, 1);
 
-        VBox content = new VBox(18,
+        VBox content = new VBox(14,
             titledLabel("Autocomplete"),
             new Label("Single-click a suggestion to append it to the draft sentence and immediately load the next suggestions."),
             form,
@@ -439,7 +511,7 @@ public class SentenceBuilderApp extends Application {
             suggestionsView,
             new HBox(10, registerWordField, registerButton)
         );
-        content.setPadding(new Insets(22));
+        content.setPadding(new Insets(18));
         content.setStyle(cardStyle("#fbf1e8"));
 
         Tab tab = new Tab("Autocomplete", content);
@@ -469,7 +541,9 @@ public class SentenceBuilderApp extends Application {
 
         TableView<WordReportView> reportTable = buildWordTable();
         ListView<String> sentenceHistoryList = new ListView<>(sentenceRows);
-        sentenceHistoryList.setPrefHeight(240);
+        sentenceHistoryList.setPrefHeight(180);
+        sentenceHistoryList.setMaxHeight(220);
+        reportTable.setPrefHeight(260);
         sentenceHistoryList.setPlaceholder(new Label("Generated sentences will appear here."));
 
         GridPane controls = new GridPane();
@@ -484,14 +558,14 @@ public class SentenceBuilderApp extends Application {
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
 
-        VBox content = new VBox(18,
+        VBox content = new VBox(14,
             titledLabel("Reports"),
             new Label("Review imported word stats and your generated sentence history."),
             controls,
             reportTable,
             sentenceHistoryList
         );
-        content.setPadding(new Insets(22));
+        content.setPadding(new Insets(18));
         content.setStyle(cardStyle("#fcf2e8"));
         VBox.setVgrow(reportTable, Priority.ALWAYS);
         VBox.setVgrow(sentenceHistoryList, Priority.ALWAYS);
@@ -526,14 +600,17 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createActivityLogPane() {
-        // Activity log acts like a lightweight event stream for demo observers.
         activityLog.setEditable(false);
         activityLog.setWrapText(true);
-        activityLog.setPrefRowCount(6);
+        activityLog.setPrefRowCount(4);
+        activityLog.setPrefHeight(120);
+        activityLog.setMinHeight(100);
+        activityLog.setMaxHeight(150);
         activityLog.setStyle("-fx-control-inner-background: #fff8f1; -fx-highlight-fill: #8f2d3a; -fx-highlight-text-fill: white;");
 
         VBox box = new VBox(8, titledLabel("Activity Log"), activityLog);
-        box.setPadding(new Insets(14, 22, 22, 22));
+        box.setPadding(new Insets(12, 16, 16, 16));
+        box.setStyle(cardStyle("#fdf5ec"));
         return box;
     }
 
@@ -543,8 +620,10 @@ public class SentenceBuilderApp extends Application {
         ImportViewState state = importController.validatePath(rawPath);
         importMessageLabel.setText(state.message());
 
-        if (!state.valid()) {
-            log("Import validation failed: " + state.message());
+        String trimmedPath = rawPath == null ? "" : rawPath.trim();
+        if (!trimmedPath.toLowerCase(Locale.ROOT).endsWith(".txt")) {
+            importMessageLabel.setText("Please choose a .txt file. PDF, DOCX, and other file types are not supported.");
+            log("Import validation failed: unsupported file type.");
             return;
         }
 
@@ -563,7 +642,9 @@ public class SentenceBuilderApp extends Application {
             refreshReports();
             log("Imported " + result.getFileName() + " at " + IMPORT_TIME_FORMATTER.format(result.getImportedAt()) + ".");
         } catch (IOException exception) {
-            importMessageLabel.setText("Import preview failed: " + exception.getMessage());
+            importMessageLabel.setText(
+                "Import failed. Please choose a plain .txt file with readable text content."
+            );
             log("Import preview failed: " + exception.getMessage());
         }
     }
@@ -779,9 +860,9 @@ public class SentenceBuilderApp extends Application {
 
     private static String cardStyle(String backgroundColor) {
         return "-fx-background-color: " + backgroundColor + ";" +
-            "-fx-background-radius: 18;" +
-            "-fx-border-color: rgba(111,29,42,0.18);" +
-            "-fx-border-radius: 18;";
+            "-fx-background-radius: 16;" +
+            "-fx-border-color: rgba(111,29,42,0.14);" +
+            "-fx-border-radius: 16;";
     }
 
     private static final class InMemoryAutocompleteGateway implements AutocompleteGateway {
