@@ -104,6 +104,8 @@ public class SentenceBuilderApp extends Application {
     private Tab autocompleteTab;
     private Tab reportsTab;
 
+    private TextField reportSearchField;
+
     private TextField generateStartWordField;
     private ComboBox<GenerationAlgorithm> algorithmBox;
     private Spinner<Integer> maxWordsSpinner;
@@ -454,6 +456,9 @@ public class SentenceBuilderApp extends Application {
         reportSortBox.getItems().addAll(WordReportSort.values());
         reportSortBox.setValue(WordReportSort.ALPHABETICAL);
 
+        reportSearchField = new TextField();
+        reportSearchField.setPromptText("Search words...");
+
         reportWordLimitSpinner = new Spinner<>();
         reportWordLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 50));
         reportWordLimitSpinner.setEditable(true);
@@ -483,6 +488,8 @@ public class SentenceBuilderApp extends Application {
         controls.add(reportSentenceLimitSpinner, 1, 1);
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
+        controls.add(new Label("Search"), 0, 2);
+        controls.add(reportSearchField, 1, 2);
 
         VBox content = new VBox(18,
             titledLabel("Reports"),
@@ -714,7 +721,8 @@ public class SentenceBuilderApp extends Application {
         try {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
-                reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue()
+                reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
+                reportSearchField == null ? "" : reportSearchField.getText()
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
                 duplicatesOnlyCheckBox != null && duplicatesOnlyCheckBox.isSelected(),
@@ -812,10 +820,29 @@ public class SentenceBuilderApp extends Application {
             this.state = state;
         }
 
+        @Override public List<WordReportView> listWords(WordReportSort sort, int limit) { 
+            // Reports are computed from the imported parse result plus any user-registered words. 
+            return state.listWords(sort, limit); 
+        }
+        
         @Override
-        public List<WordReportView> listWords(WordReportSort sort, int limit) {
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) {
             // Reports are computed from the imported parse result plus any user-registered words.
-            return state.listWords(sort, limit);
+            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
+
+            // FILTER
+            if (searchText != null && !searchText.isBlank()) {
+                String searchLower = searchText.toLowerCase();
+
+            words = words.stream()
+                    .filter(w -> w.wordText().toLowerCase().contains(searchLower))
+                    .toList();
+            }
+
+          //  LIMIT
+            return words.stream()
+                .limit(limit)
+                .toList();
         }
 
         @Override
