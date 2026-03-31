@@ -20,8 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 1, Person 2.
- * Created by: Shriram Janardhan
+ * Class: FileStatsPersistenceIT
+ * Created by: Archisha Sasson
+ * Description: Verifies end-to-end persistence of file and word statistics into the database.
  */
 // Code by Shriram Janardhan
 @Tag("integration")

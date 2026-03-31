@@ -20,7 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 2, Person 5.
+ * Class: UiFlowSmokeTest
+ * Created by: Archisha Sasson
+ * Description: Verifies the end-to-end controller flow across import, generation, autocomplete, and reporting.
  */
 @Tag("unit")
 @Tag("task2-person5")

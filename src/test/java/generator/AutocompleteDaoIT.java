@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 2, Person 4.
+ * Class: AutocompleteDaoIT
+ * Created by: Archisha Sasson
+ * Description: Verifies database-backed autocomplete suggestions, ordering, and ensure-word behavior.
  */
 @Tag("integration")
 @Tag("task2-person4")

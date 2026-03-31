@@ -1,5 +1,11 @@
 package db;
 
+/*
+ * Class: ConnectionTransactionRunnerTest
+ * Created by: Archisha Sasson
+ * Description: Verifies transaction runner commit, rollback, and exception handling behavior using a proxied connection.
+ */
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -16,9 +22,6 @@ import org.junit.jupiter.api.TestInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/*
- * Tests for Task 1, Person 3.
- */
 @Tag("unit")
 @Tag("task1-person3")
 @DisplayName("Connection Transaction Runner Tests")

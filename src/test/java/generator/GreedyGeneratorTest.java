@@ -2,6 +2,7 @@ package generator;
 
 /*
  * Class: GreedyGeneratorTest
+ * Created by: Archisha Sasson
  * Description: Verifies greedy generator logic without a database by using
  * a fake repository with deterministic next-word ordering.
  * Example: The generator should always take the first weighted option.

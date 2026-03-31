@@ -10,7 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /*
- * Tests for Task 2, Person 4.
+ * Class: GenerationServiceTest
+ * Created by: Archisha Sasson
+ * Description: Verifies generation service routing between weighted and greedy execution plus request validation.
  */
 @Tag("unit")
 @Tag("task2-person4")

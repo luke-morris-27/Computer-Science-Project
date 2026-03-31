@@ -13,7 +13,9 @@ import org.junit.jupiter.api.TestInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /*
- * Tests for Task 1, Person 3.
+ * Class: StreamingTokenProcessorTest
+ * Created by: Archisha Sasson
+ * Description: Verifies streaming token processor forwarding, buffering, and token-boundary handling.
  */
 @Tag("unit")
 @Tag("task1-person3")

@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 2, Person 5.
+ * Class: GenerateControllerTest
+ * Created by: Archisha Sasson
+ * Description: Verifies generation controller success paths and validation errors for invalid request input.
  */
 @Tag("unit")
 @Tag("task2-person5")

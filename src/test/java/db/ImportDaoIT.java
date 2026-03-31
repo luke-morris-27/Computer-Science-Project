@@ -1,5 +1,11 @@
 package db;
 
+/*
+ * Class: ImportDaoIT
+ * Created by: Archisha Sasson
+ * Description: Verifies import DAO persistence and duplicate-file lookup behavior against the database.
+ */
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;

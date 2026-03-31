@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /*
- * Tests for Task 1, Person 1.
+ * Class: FileHashServiceTest
+ * Created by: Archisha Sasson
+ * Description: Verifies file hashing is deterministic for identical content and different for changed content.
  */
 @Tag("unit")
 @Tag("task1-person1")

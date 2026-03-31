@@ -1,10 +1,12 @@
 /*
  * Class: SentenceBuilderApp
  * Original author: Archisha Sasson
- * Modified by: Omesh, Sammy
+ * Modified by: Archisha Sasson, Omesh, Sammy
  *
  * Contributions:
  * - Original JavaFX preview application and import/generate/autocomplete/reports workflow by Archisha Sasson.
+ * - Layout sizing adjustments to draft/generation balance, autocomplete suggestion display,
+ *   header visibility, fit-to-window scaling, and typography tuning by Archisha Sasson.
  * - UI layout refinements, responsive resizing behavior, draft pane improvements,
  *   import help/instructions, and fullscreen spacing polish by Omesh.
  * - Ranked autocomplete feedback, richer autocomplete UI states, and Tab-to-accept draft suggestions by Sammy.
@@ -39,6 +41,8 @@ import generator.GenerationAlgorithm;
 import generator.GenerationService;
 import generator.WeightedWord;
 import javafx.application.Application;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -66,6 +70,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -76,6 +81,9 @@ import parser.Tokenizer;
 
 public class SentenceBuilderApp extends Application {
     private static final DateTimeFormatter IMPORT_TIME_FORMATTER = DateTimeFormatter.ISO_INSTANT;
+    // Archisha: use a fixed design canvas that scales to fit the stage so the full UI stays visible.
+    private static final double BASE_WINDOW_WIDTH = 1660;
+    private static final double BASE_WINDOW_HEIGHT = 920;
 
     // This preview app does not talk directly to the production database-backed UI flow.
     // Instead, it keeps a lightweight in-memory model so the team can demonstrate the
@@ -148,19 +156,16 @@ public class SentenceBuilderApp extends Application {
     public void start(Stage stage) {
         TabPane workspaceTabs = createWorkspaceTabs(stage);
 
-        workspaceTabs.setPrefWidth(930);
-        workspaceTabs.setMinWidth(820);
-        workspaceTabs.setMaxWidth(980);
+        workspaceTabs.setPrefWidth(660);
+        workspaceTabs.setMinWidth(500);
+        workspaceTabs.setMaxWidth(Double.MAX_VALUE);
 
         VBox draftPane = createDraftPane();
-        draftPane.setPrefWidth(400);
-        draftPane.setMinWidth(360);
-        draftPane.setMaxWidth(430);
+        draftPane.setPrefWidth(760);
+        draftPane.setMinWidth(460);
+        draftPane.setMaxWidth(Double.MAX_VALUE);
 
-        Region middleGap = new Region();
-        HBox.setHgrow(middleGap, Priority.ALWAYS);
-
-        HBox mainRow = new HBox(18, workspaceTabs, middleGap, draftPane);
+        HBox mainRow = new HBox(22, workspaceTabs, draftPane);
         mainRow.setAlignment(Pos.TOP_LEFT);
 
         VBox centerColumn = new VBox(16, createHeader(), mainRow, createActivityLogPane());
@@ -169,23 +174,45 @@ public class SentenceBuilderApp extends Application {
         centerColumn.setFillWidth(true);
         centerColumn.setMaxWidth(Double.MAX_VALUE);
 
-        BorderPane root = new BorderPane();
-        root.setPadding(new Insets(18, 20, 18, 20));
-        root.setCenter(centerColumn);
-        root.setStyle(
-            "-fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #f7efe3, #efe2d1);" +
-            "-fx-font-family: 'Georgia';"
-        );
+        // Archisha: keep the designed workspace at a stable base size, then scale it responsively with the window.
+        BorderPane contentRoot = new BorderPane();
+        contentRoot.setPadding(new Insets(18, 20, 18, 20));
+        contentRoot.setCenter(centerColumn);
+        contentRoot.setPrefSize(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
+        contentRoot.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        contentRoot.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        contentRoot.setStyle("-fx-font-family: 'Georgia'; -fx-font-size: 16px;");
 
-        Scene scene = new Scene(root, 1320, 860);
+        StackPane root = new StackPane(contentRoot);
+        root.setAlignment(Pos.CENTER);
+        root.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #f7efe3, #efe2d1);");
+
+        // Archisha: fit the whole workspace into the available stage instead of clipping individual panels.
+        DoubleBinding scaleBinding = Bindings.createDoubleBinding(
+            () -> Math.min(
+                1.0,
+                Math.min(
+                    root.getWidth() / BASE_WINDOW_WIDTH,
+                    root.getHeight() / BASE_WINDOW_HEIGHT
+                )
+            ),
+            root.widthProperty(),
+            root.heightProperty()
+        );
+        contentRoot.scaleXProperty().bind(scaleBinding);
+        contentRoot.scaleYProperty().bind(scaleBinding);
+
+        Scene scene = new Scene(root, BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
         stage.setTitle("Team 43: Sentence Builder");
         stage.setScene(scene);
-        stage.setMinWidth(1100);
-        stage.setMinHeight(760);
+        stage.setResizable(true);
+        stage.setMinWidth(720);
+        stage.setMinHeight(520);
         stage.show();
 
         workspaceTabs.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(workspaceTabs, Priority.ALWAYS);
+        HBox.setHgrow(draftPane, Priority.ALWAYS);
         setWorkspaceEnabled(false);
         refreshDraftMetadata();
         refreshReports();
@@ -210,18 +237,20 @@ public class SentenceBuilderApp extends Application {
 
     private VBox createHeader() {
         Label title = new Label("Team 43: Sentence Builder");
-        title.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
+        title.setStyle("-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
 
         Label subtitle = new Label("Interactive workspace for import, generation, autocomplete, and reports.");
-        subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #8a3a46;");
+        subtitle.setStyle("-fx-font-size: 16px; -fx-text-fill: #8a3a46;");
 
         Label importLabel = new Label("Active Import");
-        importLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
+        importLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
 
-        VBox summaryCard = new VBox(5, importLabel, activeFileValue, statsValue);
-        summaryCard.setPadding(new Insets(12, 16, 12, 16));
-        summaryCard.setPrefWidth(220);
-        summaryCard.setMaxWidth(260);
+        // Archisha: widen the import summary card so the active file details have enough room on the top right.
+        VBox summaryCard = new VBox(6, importLabel, activeFileValue, statsValue);
+        summaryCard.setPadding(new Insets(14, 18, 14, 18));
+        summaryCard.setMinWidth(280);
+        summaryCard.setPrefWidth(380);
+        summaryCard.setMaxWidth(440);
         summaryCard.setStyle(
             "-fx-background-color: rgba(255,248,240,0.90);" +
             "-fx-background-radius: 14;" +
@@ -248,10 +277,12 @@ public class SentenceBuilderApp extends Application {
 
         sentenceDraftArea.setWrapText(true);
         sentenceDraftArea.setPromptText("Your working sentence lives here...");
-        sentenceDraftArea.setPrefRowCount(10);
-        sentenceDraftArea.setPrefHeight(260);
-        sentenceDraftArea.setMinHeight(220);
-        sentenceDraftArea.setMaxHeight(420);
+        sentenceDraftArea.setPrefRowCount(14);
+        sentenceDraftArea.setPrefColumnCount(38);
+        sentenceDraftArea.setPrefHeight(380);
+        sentenceDraftArea.setMinHeight(340);
+        sentenceDraftArea.setMaxHeight(560);
+        sentenceDraftArea.setMaxWidth(Double.MAX_VALUE);
         // sammy 3/30: refreshes the draft status and the live top suggestion every time the user edits the draft.
         sentenceDraftArea.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshDraftMetadata();
@@ -324,9 +355,10 @@ public class SentenceBuilderApp extends Application {
             actions
         );
         box.setPadding(new Insets(18));
-        box.setPrefWidth(380);
-        box.setMinWidth(320);
-        box.setMaxWidth(430);
+        box.setPrefWidth(760);
+        box.setMinWidth(460);
+        box.setMaxWidth(Double.MAX_VALUE);
+        box.setFillWidth(true);
         box.setStyle(cardStyle("#fff7ee"));
         VBox.setVgrow(sentenceDraftArea, Priority.ALWAYS);
         return box;
@@ -421,7 +453,10 @@ public class SentenceBuilderApp extends Application {
         generateOutputArea.setEditable(false);
         generateOutputArea.setWrapText(true);
         generateOutputArea.setPromptText("Generated output appears here");
-        generateOutputArea.setPrefRowCount(8);
+        generateOutputArea.setPrefRowCount(5);
+        generateOutputArea.setPrefHeight(170);
+        generateOutputArea.setMinHeight(150);
+        generateOutputArea.setMaxHeight(190);
 
         Button generateButton = new Button("Generate / Continue");
         generateButton.setOnAction(event -> handleGenerate());
@@ -524,7 +559,7 @@ public class SentenceBuilderApp extends Application {
 
         VBox content = new VBox(14,
             titledLabel("Autocomplete"),
-            new Label("Single-click a ranked suggestion to append it to the draft sentence and immediately load the next suggestions."),
+            new Label("Single-click a suggestion to append it to the draft sentence and immediately load the next suggestions."),
             form,
             requestSuggestionsButton,
             autocompleteStatusValue,
@@ -622,14 +657,15 @@ public class SentenceBuilderApp extends Application {
     private VBox createActivityLogPane() {
         activityLog.setEditable(false);
         activityLog.setWrapText(true);
-        activityLog.setPrefRowCount(4);
-        activityLog.setPrefHeight(120);
-        activityLog.setMinHeight(100);
-        activityLog.setMaxHeight(150);
+        // Archisha: keep the activity log compact so more vertical space stays available for the main workspace.
+        activityLog.setPrefRowCount(5);
+        activityLog.setPrefHeight(145);
+        activityLog.setMinHeight(130);
+        activityLog.setMaxHeight(190);
         activityLog.setStyle("-fx-control-inner-background: #fff8f1; -fx-highlight-fill: #8f2d3a; -fx-highlight-text-fill: white;");
 
         VBox box = new VBox(8, titledLabel("Activity Log"), activityLog);
-        box.setPadding(new Insets(12, 16, 16, 16));
+        box.setPadding(new Insets(12, 16, 20, 16));
         box.setStyle(cardStyle("#fdf5ec"));
         return box;
     }
@@ -845,7 +881,7 @@ public class SentenceBuilderApp extends Application {
         }
     }
 
-    // sammy 3/30: renders each suggestion as a ranked row and ignores clicks on empty space inside the list view.
+    // sammy 3/30: renders each suggestion as a plain row and ignores clicks on empty space inside the list view.
     private ListCell<String> createSuggestionCell() {
         ListCell<String> cell = new ListCell<>() {
             @Override
@@ -857,8 +893,7 @@ public class SentenceBuilderApp extends Application {
                     return;
                 }
 
-                // sammy 3/30: shows the service-provided order directly in the ui so users can see the ranking clearly.
-                setText((getIndex() + 1) + ". " + item);
+                setText(item);
             }
         };
 
@@ -978,14 +1013,14 @@ public class SentenceBuilderApp extends Application {
 
     private static Label createValueLabel(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: #5b1f2a;");
+        label.setStyle("-fx-font-size: 16px; -fx-text-fill: #5b1f2a;");
         label.setWrapText(true);
         return label;
     }
 
     private static Label titledLabel(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
+        label.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
         return label;
     }
 
@@ -993,6 +1028,7 @@ public class SentenceBuilderApp extends Application {
         return "-fx-background-color: " + backgroundColor + ";" +
             "-fx-background-radius: 16;" +
             "-fx-border-color: rgba(111,29,42,0.14);" +
+            "-fx-border-width: 1;" +
             "-fx-border-radius: 16;";
     }
 
@@ -1178,6 +1214,8 @@ public class SentenceBuilderApp extends Application {
             Set<String> allWords = new LinkedHashSet<>(parseResult.getWordCounts().keySet());
             allWords.addAll(registeredWords);
 
+            // Archisha: apply the report-screen sort modes so users can switch between alphabetical,
+            // total frequency, sentence-start count, and sentence-end count views.
             Comparator<WordReportView> comparator = switch (sort) {
                 case TOTAL_COUNT_DESC -> Comparator.comparingInt(WordReportView::totalCount).reversed()
                     .thenComparing(WordReportView::wordText);
@@ -1207,6 +1245,8 @@ public class SentenceBuilderApp extends Application {
                 return generatedSentences.stream().limit(limit).toList();
             }
 
+            // Archisha: highlight duplicate generated sentences in the reports view by collapsing
+            // repeated history entries down to the sentences that occurred more than once.
             Map<String, Long> counts = generatedSentences.stream()
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 

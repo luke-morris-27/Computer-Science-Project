@@ -15,7 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 2, Person 4.
+ * Class: AutocompleteServiceTest
+ * Created by: Archisha Sasson
+ * Description: Verifies autocomplete service normalization, trigger checks, limit validation, and unknown-word registration.
  */
 @Tag("unit")
 @Tag("task2-person4")

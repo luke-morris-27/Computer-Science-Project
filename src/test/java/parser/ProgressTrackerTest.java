@@ -9,7 +9,9 @@ import org.junit.jupiter.api.TestInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /*
- * Tests for Task 1, Person 3.
+ * Class: ProgressTrackerTest
+ * Created by: Archisha Sasson
+ * Description: Verifies progress tracker counting, percentage calculation, and formatted output.
  */
 @Tag("unit")
 @Tag("task1-person3")

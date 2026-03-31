@@ -11,10 +11,10 @@ import org.junit.jupiter.api.TestInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /*
- * Tests for Task 1, Person 2.
- * Created by: Shriram Janardhan
+ * Class: FileStatsPersistenceServiceTest
+ * Created by: Archisha Sasson
+ * Description: Verifies file-stats aggregation is translated into the correct persistence calls.
  */
-// Code by Shriram Janardhan
 @Tag("unit")
 @Tag("task1-person2")
 @DisplayName("File Stats Persistence Service Unit Tests")

@@ -2,6 +2,7 @@ package generator;
 
 /*
  * Class: GreedyGeneratorIT
+ * Created by: Archisha Sasson
  * Description: Verifies greedy generator behavior against the database,
  * including deterministic next-word selection and generated sentence storage.
  * Example: A missing start word should fall back to the highest-ranked start.

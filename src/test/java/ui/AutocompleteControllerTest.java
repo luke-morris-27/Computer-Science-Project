@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 2, Person 5.
+ * Class: AutocompleteControllerTest
+ * Created by: Archisha Sasson
+ * Description: Verifies autocomplete controller outcomes for suggestions, skipped triggers, blank input, and no-result states.
  */
 @Tag("unit")
 @Tag("task2-person5")

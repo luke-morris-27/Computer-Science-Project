@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 1, Person 1.
+ * Class: ImportDeduplicationServiceTest
+ * Created by: Archisha Sasson
+ * Description: Verifies duplicate-import preparation decisions for new files, repeated hashes, and invalid paths.
  */
 @Tag("unit")
 @Tag("task1-person1")

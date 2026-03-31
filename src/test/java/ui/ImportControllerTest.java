@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Tests for Task 2, Person 5.
+ * Class: ImportControllerTest
+ * Created by: Archisha Sasson
+ * Description: Verifies import controller validation for valid files and missing-file error cases.
  */
 @Tag("unit")
 @Tag("task2-person5")

@@ -12,7 +12,9 @@ import org.junit.jupiter.api.TestInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /*
- * Tests for Task 2, Person 5.
+ * Class: ReportsControllerTest
+ * Created by: Archisha Sasson
+ * Description: Verifies reports controller default sort selection, limit fallback, and reporting-service delegation.
  */
 @Tag("unit")
 @Tag("task2-person5")
