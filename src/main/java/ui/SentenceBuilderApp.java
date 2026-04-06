@@ -476,7 +476,7 @@ public class SentenceBuilderApp extends Application {
         GridPane form = new GridPane();
         form.setHgap(12);
         form.setVgap(12);
-        form.add(new Label("Algorithm"), 0, 0);
+        form.add(new Label("Generation Mode"), 0, 0);
         form.add(algorithmBox, 1, 0);
         form.add(new Label("Start word"), 0, 1);
         form.add(generateStartWordField, 1, 1);
@@ -729,7 +729,7 @@ public class SentenceBuilderApp extends Application {
         generateOutputArea.setText(state.sentence());
         if (sentenceDraftArea.getText().isBlank()) {
             sentenceDraftArea.setText(state.sentence());
-            log("Generated a new draft with " + algorithmBox.getValue().name().toLowerCase(Locale.ROOT) + " mode.");
+            log("Generated a new draft using " + algorithmBox.getValue() + " mode.");
         } else if (usingDraftContinuation && !lastDraftWord.isBlank()) {
             String continuation = removeLeadingWord(state.sentence(), lastDraftWord);
             if (!continuation.isBlank()) {

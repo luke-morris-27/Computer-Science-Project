@@ -35,3 +35,6 @@ bin/
 ### Mac OS ###
 .DS_Store
 parser/big_inputs/
+
+### Claude Code ###
+CLAUDE.md
