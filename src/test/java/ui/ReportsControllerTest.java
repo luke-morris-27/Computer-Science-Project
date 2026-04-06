@@ -60,6 +60,15 @@ class ReportsControllerTest {
         }
 
         @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
+            this.lastSort = sort;
+            this.lastLimit = limit;
+            return List.of(new WordReportView("alpha", 10, 2, 1));
+        }
+        
+}
+
+        @Override
         public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) throws SQLException {
             this.lastOnlyDuplicates = onlyDuplicates;
             this.lastLimit = limit;
