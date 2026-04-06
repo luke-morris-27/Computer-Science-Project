@@ -962,6 +962,7 @@ public class SentenceBuilderApp extends Application {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
                 reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue()
+                reportSearchField == null ? "" : reportSearchField.getText()
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
                 duplicatesOnlyCheckBox != null && duplicatesOnlyCheckBox.isSelected(),
@@ -1066,6 +1067,26 @@ public class SentenceBuilderApp extends Application {
             return state.listWords(sort, limit);
         }
 
+        @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) {
+            // Reports are computed from the imported parse result plus any user-registered words.
+            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
+
+            // FILTER
+            if (searchText != null && !searchText.isBlank()) {
+                String searchLower = searchText.toLowerCase();
+
+            words = words.stream()
+                    .filter(w -> w.wordText().toLowerCase().contains(searchLower))
+                    .toList();
+            }
+
+          //  LIMIT
+            return words.stream()
+                .limit(limit)
+                .toList();
+        }
+        
         @Override
         public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
             return state.listGeneratedSentences(onlyDuplicates, limit);
