@@ -21,7 +21,13 @@ public class ReportsController {
         int effectiveLimit = limit <= 0 ? 100 : limit;
         return reportingService.listWords(effectiveSort, effectiveLimit);
     }
-    
+
+    public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
+        WordReportSort effectiveSort = sort == null ? WordReportSort.ALPHABETICAL : sort;
+        int effectiveLimit = limit <= 0 ? 100 : limit;
+        String effectiveSearch = searchText == null ? "" : searchText.trim().toLowerCase();
+        return reportingService.listWords(effectiveSort, effectiveLimit, effectiveSearch);
+    }
 
     public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) throws SQLException {
         int effectiveLimit = limit <= 0 ? 100 : limit;
