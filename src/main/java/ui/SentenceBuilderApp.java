@@ -128,6 +128,8 @@ public class SentenceBuilderApp extends Application {
     private Tab autocompleteTab;
     private Tab reportsTab;
 
+    private TextField reportSearchField;
+
     private TextField generateStartWordField;
     private ComboBox<GenerationAlgorithm> algorithmBox;
     private Spinner<Integer> maxWordsSpinner;
@@ -581,6 +583,9 @@ public class SentenceBuilderApp extends Application {
         reportSortBox.getItems().addAll(WordReportSort.values());
         reportSortBox.setValue(WordReportSort.ALPHABETICAL);
 
+        reportSearchField = new TextField();
+        reportSearchField.setPromptText("Search words...");
+
         reportWordLimitSpinner = new Spinner<>();
         reportWordLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 50));
         reportWordLimitSpinner.setEditable(true);
@@ -612,6 +617,8 @@ public class SentenceBuilderApp extends Application {
         controls.add(reportSentenceLimitSpinner, 1, 1);
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
+        controls.add(new Label("Search"), 0, 2);
+        controls.add(reportSearchField, 1, 2);
 
         VBox content = new VBox(14,
             titledLabel("Reports"),
