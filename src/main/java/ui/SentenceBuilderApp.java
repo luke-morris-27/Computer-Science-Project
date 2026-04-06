@@ -1,7 +1,7 @@
 /*
  * Class: SentenceBuilderApp
  * Original author: Archisha Sasson
- * Modified by: Archisha Sasson, Omesh, Sammy
+ * Modified by: Archisha Sasson, Omesh, Sammy, Luke
  *
  * Contributions:
  * - Original JavaFX preview application and import/generate/autocomplete/reports workflow by Archisha Sasson.
