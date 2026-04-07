@@ -1232,7 +1232,7 @@ public class SentenceBuilderApp extends Application {
             if (searchText != null && !searchText.isBlank()) {
                 String searchLower = searchText.toLowerCase(Locale.ROOT);
                 words = words.stream()
-                    .filter(word -> word.wordText().toLowerCase(Locale.ROOT).contains(searchLower))
+                    .filter(word -> word.wordText().toLowerCase(Locale.ROOT).startsWith(searchLower))
                     .toList();
             }
             return words.stream()
