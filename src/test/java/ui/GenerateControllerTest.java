@@ -1,5 +1,7 @@
 package ui;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -8,9 +10,6 @@ import org.junit.jupiter.api.TestInfo;
 
 import generator.GenerationAlgorithm;
 import generator.GenerationService;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * Class: GenerateControllerTest
@@ -31,7 +30,8 @@ class GenerateControllerTest {
     void validGenerateRequestReturnsSuccessState() {
         GenerationService service = new GenerationService(
             (start, max) -> "weighted-sentence",
-            (start, max) -> "greedy-sentence"
+            (start, max) -> "greedy-sentence",
+            (start, max) -> "random-sentence"
         );
         GenerateController controller = new GenerateController(service);
 
@@ -46,7 +46,8 @@ class GenerateControllerTest {
     void invalidMaxWordsReturnsErrorState() {
         GenerationService service = new GenerationService(
             (start, max) -> "weighted-sentence",
-            (start, max) -> "greedy-sentence"
+            (start, max) -> "greedy-sentence",
+            (start, max) -> "random-sentence"
         );
         GenerateController controller = new GenerateController(service);
 

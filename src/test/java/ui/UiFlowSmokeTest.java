@@ -39,7 +39,8 @@ class UiFlowSmokeTest {
         ImportController importController = new ImportController();
         GenerationService generationService = new GenerationService(
             (start, max) -> "weighted sentence",
-            (start, max) -> "greedy sentence"
+            (start, max) -> "greedy sentence",
+            (start, max) -> "random sentence"
         );
         GenerateController generateController = new GenerateController(generationService);
 

@@ -1,6 +1,7 @@
 /*
  * Class: GenerationAlgorithm
  * Created by: Sammy
+ * Modified by: Omesh Sana
  * Description: Defines which sentence-generation strategy should be used for a request.
  * Example: GenerationAlgorithm.GREEDY
  */
@@ -12,5 +13,7 @@ public enum GenerationAlgorithm {
     WEIGHTED,
 
     // always picks the most likely next word
-    GREEDY
+    GREEDY,
+
+    RANDOM
 }
