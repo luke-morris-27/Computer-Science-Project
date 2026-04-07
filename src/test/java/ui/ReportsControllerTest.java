@@ -49,15 +49,37 @@ class ReportsControllerTest {
         assertEquals(100, reportingService.lastLimit);
     }
 
+    @Test
+    @DisplayName("Search text is normalized before delegating")
+    void searchTextIsNormalizedBeforeDelegating() throws Exception {
+        FakeReportingService reportingService = new FakeReportingService();
+        ReportsController controller = new ReportsController(reportingService);
+
+        controller.listWords(null, 25, "  HeLLo  ");
+
+        assertEquals(WordReportSort.ALPHABETICAL, reportingService.lastSort);
+        assertEquals(25, reportingService.lastLimit);
+        assertEquals("hello", reportingService.lastSearchText);
+    }
+
     private static final class FakeReportingService implements UiReportingService {
         private WordReportSort lastSort;
         private int lastLimit;
         private boolean lastOnlyDuplicates;
+        private String lastSearchText;
 
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit) throws SQLException {
             this.lastSort = sort;
             this.lastLimit = limit;
+            return List.of(new WordReportView("alpha", 10, 2, 1));
+        }
+
+        @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
+            this.lastSort = sort;
+            this.lastLimit = limit;
+            this.lastSearchText = searchText;
             return List.of(new WordReportView("alpha", 10, 2, 1));
         }
 

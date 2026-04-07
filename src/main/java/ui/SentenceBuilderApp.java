@@ -128,8 +128,6 @@ public class SentenceBuilderApp extends Application {
     private Tab autocompleteTab;
     private Tab reportsTab;
 
-    private TextField reportSearchField;
-
     private TextField generateStartWordField;
     private ComboBox<GenerationAlgorithm> algorithmBox;
     private Spinner<Integer> maxWordsSpinner;
@@ -139,6 +137,7 @@ public class SentenceBuilderApp extends Application {
     private Spinner<Integer> suggestionLimitSpinner;
     private ListView<String> suggestionsView;
 
+    private TextField reportSearchField;
     private ComboBox<WordReportSort> reportSortBox;
     private Spinner<Integer> reportWordLimitSpinner;
     private Spinner<Integer> reportSentenceLimitSpinner;
@@ -618,7 +617,7 @@ public class SentenceBuilderApp extends Application {
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
         controls.add(new Label("Search"), 0, 2);
-        controls.add(reportSearchField, 1, 2);
+        controls.add(reportSearchField, 1, 2, 3, 1);
 
         VBox content = new VBox(14,
             titledLabel("Reports"),
@@ -968,7 +967,7 @@ public class SentenceBuilderApp extends Application {
         try {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
-                reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue()
+                reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
                 reportSearchField == null ? "" : reportSearchField.getText()
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
@@ -1076,24 +1075,17 @@ public class SentenceBuilderApp extends Application {
 
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) {
-            // Reports are computed from the imported parse result plus any user-registered words.
             List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
-
-            // FILTER
             if (searchText != null && !searchText.isBlank()) {
-                String searchLower = searchText.toLowerCase();
-
-            words = words.stream()
-                    .filter(w -> w.wordText().toLowerCase().contains(searchLower))
+                String searchLower = searchText.toLowerCase(Locale.ROOT);
+                words = words.stream()
+                    .filter(word -> word.wordText().toLowerCase(Locale.ROOT).contains(searchLower))
                     .toList();
             }
-
-          //  LIMIT
             return words.stream()
                 .limit(limit)
                 .toList();
         }
-        
         @Override
         public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
             return state.listGeneratedSentences(onlyDuplicates, limit);
