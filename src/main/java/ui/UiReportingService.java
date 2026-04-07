@@ -12,9 +12,7 @@ import java.util.List;
 public interface UiReportingService {
     List<WordReportView> listWords(WordReportSort sort, int limit) throws SQLException;
 
-    default List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
-        return listWords(sort, limit);
-    }
+    List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException;
 
     List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) throws SQLException;
 }

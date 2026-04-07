@@ -22,7 +22,6 @@ public class ReportsController {
         int effectiveLimit = limit <= 0 ? 100 : limit;
         return reportingService.listWords(effectiveSort, effectiveLimit);
     }
-
     public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
         WordReportSort effectiveSort = sort == null ? WordReportSort.ALPHABETICAL : sort;
         int effectiveLimit = limit <= 0 ? 100 : limit;

@@ -88,6 +88,11 @@ class UiFlowSmokeTest {
         }
 
         @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
+            return List.of(new WordReportView("hello", 5, 2, 1));
+        }
+
+        @Override
         public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) throws SQLException {
             return List.of("hello world");
         }

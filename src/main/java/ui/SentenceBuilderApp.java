@@ -128,6 +128,8 @@ public class SentenceBuilderApp extends Application {
     private Tab autocompleteTab;
     private Tab reportsTab;
 
+    private TextField reportSearchField;
+
     private TextField generateStartWordField;
     private ComboBox<GenerationAlgorithm> algorithmBox;
     private Spinner<Integer> maxWordsSpinner;
@@ -1067,10 +1069,29 @@ public class SentenceBuilderApp extends Application {
             this.state = state;
         }
 
+        @Override public List<WordReportView> listWords(WordReportSort sort, int limit) { 
+            // Reports are computed from the imported parse result plus any user-registered words. 
+            return state.listWords(sort, limit); 
+        }
+        
         @Override
-        public List<WordReportView> listWords(WordReportSort sort, int limit) {
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) {
             // Reports are computed from the imported parse result plus any user-registered words.
-            return state.listWords(sort, limit);
+            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
+
+            // FILTER
+            if (searchText != null && !searchText.isBlank()) {
+                String searchLower = searchText.toLowerCase();
+
+            words = words.stream()
+                    .filter(w -> w.wordText().toLowerCase().contains(searchLower))
+                    .toList();
+            }
+
+          //  LIMIT
+            return words.stream()
+                .limit(limit)
+                .toList();
         }
 
         @Override
