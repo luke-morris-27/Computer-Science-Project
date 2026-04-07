@@ -10,6 +10,7 @@
  * - UI layout refinements, responsive resizing behavior, draft pane improvements,
  *   import help/instructions, and fullscreen spacing polish by Omesh.
  * - Ranked autocomplete feedback, richer autocomplete UI states, and Tab-to-accept draft suggestions by Sammy.
+ * - Random generation mode and refactored generation service to support multiple algorithms by Omesh.
  *
  * Description:
  * JavaFX preview application that surfaces the current ui package
@@ -103,7 +104,8 @@ public class SentenceBuilderApp extends Application {
     private final GenerateController generateController =
         new GenerateController(new GenerationService(
             (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.WEIGHTED, startWord, maxWords),
-            (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.GREEDY, startWord, maxWords)
+            (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.GREEDY, startWord, maxWords),
+            (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.RANDOM, startWord, maxWords)
         ));
     // Reports are rendered from demoState so the UI can display imported word counts and
     // generated sentence history without depending on persistence.
@@ -440,7 +442,11 @@ public class SentenceBuilderApp extends Application {
         // The generate tab controls the algorithm and generation limits. Output is shown in
         // a read-only area first so the user can decide whether to copy it into the draft.
         algorithmBox = new ComboBox<>();
-        algorithmBox.getItems().addAll(GenerationAlgorithm.WEIGHTED, GenerationAlgorithm.GREEDY);
+        algorithmBox.getItems().addAll(
+            GenerationAlgorithm.WEIGHTED,
+            GenerationAlgorithm.GREEDY,
+            GenerationAlgorithm.RANDOM
+        );
         algorithmBox.setValue(GenerationAlgorithm.WEIGHTED);
 
         generateStartWordField = new TextField();
@@ -1130,9 +1136,11 @@ public class SentenceBuilderApp extends Application {
                     break;
                 }
 
-                currentWord = algorithm == GenerationAlgorithm.GREEDY
-                    ? chooseGreedy(nextWords)
-                    : chooseWeighted(nextWords);
+                currentWord = switch (algorithm) {
+                    case GREEDY -> chooseGreedy(nextWords);
+                    case WEIGHTED -> chooseWeighted(nextWords);
+                    case RANDOM -> chooseRandom(nextWords);
+                };
 
                 if (currentWord == null || currentWord.isBlank()) {
                     break;
@@ -1156,9 +1164,11 @@ public class SentenceBuilderApp extends Application {
 
             Map<String, Integer> sentenceStarts = parseResult.getSentenceStartCounts();
             if (!sentenceStarts.isEmpty()) {
-                return algorithm == GenerationAlgorithm.GREEDY
-                    ? chooseGreedy(sentenceStarts)
-                    : chooseWeighted(sentenceStarts);
+                return switch (algorithm) {
+                    case GREEDY -> chooseGreedy(sentenceStarts);
+                    case WEIGHTED -> chooseWeighted(sentenceStarts);
+                    case RANDOM -> chooseRandom(sentenceStarts);
+                };
             }
 
             return chooseGreedy(parseResult.getWordCounts());
@@ -1198,6 +1208,19 @@ public class SentenceBuilderApp extends Application {
                 }
             }
             return chooseGreedy(options);
+        }
+
+        private String chooseRandom(Map<String, Integer> options) {
+            List<String> validOptions = options.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && entry.getValue() > 0)
+                .map(Map.Entry::getKey)
+                .toList();
+
+            if (validOptions.isEmpty()) {
+                return null;
+            }
+
+            return validOptions.get(random.nextInt(validOptions.size()));
         }
 
         private List<WeightedWord> findSuggestions(String normalizedWord, int limit) {

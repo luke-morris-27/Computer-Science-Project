@@ -2,7 +2,8 @@ package generator;
 
 /*
  * Class: GreedyGeneratorTest
- * Created by: Archisha Sasson
+ * Created by: Archisha Sasson 
+ * Modified by: Omesh Sana
  * Description: Verifies greedy generator logic without a database by using
  * a fake repository with deterministic next-word ordering.
  * Example: The generator should always take the first weighted option.
@@ -14,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -21,9 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 import parser.Normalizer;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 @Tag("unit")
 @Tag("generator")
