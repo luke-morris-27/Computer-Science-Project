@@ -1140,7 +1140,7 @@ public class SentenceBuilderApp extends Application {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
                 reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
-                reportSearchField == null ? "" : reportSearchField.getText()
+                reportSearchField == null ? "" : reportSearchField.getText(),
                 reportSecondWordField == null ? "" : reportSecondWordField.getText();
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
