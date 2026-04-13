@@ -1370,6 +1370,38 @@ public class SentenceBuilderApp extends Application {
             return sentence;
         }
 
+        public int countPreceding(String word, String prevWord) {
+            int count = 0;
+
+            for (String sentence : generatedSentences) {
+                String[] tokens = sentence.toLowerCase().split("\\s+");
+
+                for (int i = 1; i < tokens.length; i++) {
+                    if (tokens[i].equals(word) && tokens[i - 1].equals(prevWord)) {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        public int countFollowing(String word, String nextWord) {
+            int count = 0;
+
+            for (String sentence : generatedSentences) { // or whatever list you use
+                String[] tokens = sentence.toLowerCase().split("\\s+");
+
+                for (int i = 0; i < tokens.length - 1; i++) {
+                    if (tokens[i].equals(word) && tokens[i + 1].equals(nextWord)) {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
         private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
             // Prefer an explicit valid start word; otherwise fall back to sentence starts or,
             // failing that, the most common word in the imported result.
@@ -1490,7 +1522,7 @@ public class SentenceBuilderApp extends Application {
                     word,
                     parseResult.getWordCounts().getOrDefault(word, 0),
                     parseResult.getSentenceStartCounts().getOrDefault(word, 0),
-                    parseResult.getSentenceEndCounts().getOrDefault(word, 0)
+                    parseResult.getSentenceEndCounts().getOrDefault(word, 0), 0, 0
                 ))
                 .sorted(comparator)
                 .limit(limit)
