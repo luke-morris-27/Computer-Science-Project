@@ -1258,6 +1258,56 @@ public class SentenceBuilderApp extends Application {
                 .limit(limit)
                 .toList();
         }
+
+        @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText, String secondWord){
+            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
+
+            // Filter by search word
+            if (searchText != null && !searchText.isBlank()) {
+                String searchLower = searchText.toLowerCase(Locale.ROOT);
+
+                words = words.stream()
+                    .filter(word -> word.wordText().equalsIgnoreCase(searchLower))
+                    .toList();
+            }
+
+            // If no second word → return normal results
+            if (secondWord == null || secondWord.isBlank()) {
+                return words.stream()
+                    .limit(limit)
+                    .map(w -> new WordReportView(
+                    w.wordText(),
+                    w.totalCount(),
+                    w.startCount(),
+                    w.endCount(),
+                    0,  // follows
+                    0   // precedes
+                ))
+                .toList();
+            }
+
+            String secondLower = secondWord.toLowerCase(Locale.ROOT);
+
+            // Compute relationships
+            return words.stream()
+                .map(w -> {
+                    int follows = state.countFollowing(w.wordText(), secondLower);
+                    int precedes = state.countPreceding(w.wordText(), secondLower);
+
+                    return new WordReportView(
+                    w.wordText(),
+                    w.totalCount(),
+                    w.startCount(),
+                    w.endCount(),
+                    follows,
+                    precedes
+                );
+            })
+            .limit(limit)
+            .toList();
+    }
+        
         @Override
         public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
             return state.listGeneratedSentences(onlyDuplicates, limit);
