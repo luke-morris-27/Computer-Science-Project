@@ -6,5 +6,5 @@
  */
 package ui;
 
-public record WordReportView(String wordText, int totalCount, int startCount, int endCount) {
+public record WordReportView(String wordText, int totalCount, int startCount, int endCount, int followsCount, int precedesCount) {
 }
