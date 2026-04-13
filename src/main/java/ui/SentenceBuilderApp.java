@@ -1141,7 +1141,7 @@ public class SentenceBuilderApp extends Application {
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
                 reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
                 reportSearchField == null ? "" : reportSearchField.getText(),
-                reportSecondWordField == null ? "" : reportSecondWordField.getText();
+                reportSecondWordField == null ? "" : reportSecondWordField.getText()
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
                 duplicatesOnlyCheckBox != null && duplicatesOnlyCheckBox.isSelected(),
