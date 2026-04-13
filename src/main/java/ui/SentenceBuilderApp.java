@@ -146,6 +146,7 @@ public class SentenceBuilderApp extends Application {
     private Pane draftSuggestionOverlay;
 
     private TextField reportSearchField;
+    private TextField reportSecondWordField;
     private ComboBox<WordReportSort> reportSortBox;
     private Spinner<Integer> reportWordLimitSpinner;
     private Spinner<Integer> reportSentenceLimitSpinner;
@@ -625,6 +626,9 @@ public class SentenceBuilderApp extends Application {
         reportSearchField = new TextField();
         reportSearchField.setPromptText("Search words...");
 
+        reportSecondWordField = new TextField();
+        reportSecondWordField.setPromptText("Optional word for relation to search word");
+
         reportWordLimitSpinner = new Spinner<>();
         reportWordLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 50));
         reportWordLimitSpinner.setEditable(true);
@@ -658,6 +662,8 @@ public class SentenceBuilderApp extends Application {
         controls.add(refreshButton, 3, 1);
         controls.add(new Label("Search"), 0, 2);
         controls.add(reportSearchField, 1, 2, 3, 1);
+        controls.add(new Label("Second word"), 0, 2);
+        controls.add(reportSecondWordField, 1, 2);
 
         VBox content = new VBox(14,
             titledLabel("Reports"),
@@ -1123,6 +1129,7 @@ public class SentenceBuilderApp extends Application {
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
                 reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
                 reportSearchField == null ? "" : reportSearchField.getText()
+                reportSecondWordField == null ? "" : reportSecondWordField.getText();
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
                 duplicatesOnlyCheckBox != null && duplicatesOnlyCheckBox.isSelected(),
