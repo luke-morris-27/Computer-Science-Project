@@ -1299,8 +1299,8 @@ public class SentenceBuilderApp extends Application {
                     w.totalCount(),
                     w.startCount(),
                     w.endCount(),
-                    follows,
-                    precedes
+                    w.follows(),
+                    w.precedes()
                 );
             })
             .limit(limit)
@@ -1370,15 +1370,20 @@ public class SentenceBuilderApp extends Application {
         }
 
         public int countPreceding(String word, String prevWord) {
+            if (parseResult == null) return 0;
+
+            word = normalizer.normalize(word);
+            prevWord = normalizer.normalize(prevWord);
+
+            // Reverse lookup: check all words that lead INTO 'word'
             int count = 0;
 
-            for (String sentence : generatedSentences) {
-                String[] tokens = sentence.toLowerCase().split("\\s+");
+            for (Map.Entry<String, Map<String, Integer>> entry : parseResult.getNextWordCounts().entrySet()) {
+                String possiblePrev = entry.getKey();
+                Map<String, Integer> nextMap = entry.getValue();
 
-                for (int i = 1; i < tokens.length; i++) {
-                    if (tokens[i].equals(word) && tokens[i - 1].equals(prevWord)) {
-                        count++;
-                    }
+                if (possiblePrev.equals(prevWord)) {
+                    count += nextMap.getOrDefault(word, 0);
                 }
             }
 
@@ -1386,19 +1391,14 @@ public class SentenceBuilderApp extends Application {
         }
 
         public int countFollowing(String word, String nextWord) {
-            int count = 0;
+            if (parseResult == null) return 0;
 
-            for (String sentence : generatedSentences) { // or whatever list you use
-                String[] tokens = sentence.toLowerCase().split("\\s+");
+            word = normalizer.normalize(word);
+            nextWord = normalizer.normalize(nextWord);
 
-                for (int i = 0; i < tokens.length - 1; i++) {
-                    if (tokens[i].equals(word) && tokens[i + 1].equals(nextWord)) {
-                        count++;
-                    }
-                }
-            }
-
-            return count;
+            return parseResult.getNextWordCounts()
+                .getOrDefault(word, Map.of())
+                .getOrDefault(nextWord, 0);
         }
 
         private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
