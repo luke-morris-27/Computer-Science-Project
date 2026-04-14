@@ -43,12 +43,31 @@ public class WeightedGenerator {
             return "";
         }
 
+        // Code by Shriram
+        // checks if the user provided a start word that is not in the database
+        String normalizedStart = normalizer.normalize(startWord);
+        boolean userProvidedWord = !normalizedStart.isEmpty();
+        // End of Code by Shriram
+
         WeightedWord start = resolveStartWord(startWord);
         if (start == null) {
+            // Code by Shriram
+            // returns just the user's word when no database words exist
+            if (userProvidedWord) {
+                repository.saveGeneratedSentence(normalizedStart, ALGORITHM_NAME, null);
+                return normalizedStart;
+            }
+            // End of Code by Shriram
             return "";
         }
 
         List<String> generatedWords = new ArrayList<>();
+        // Code by Shriram
+        // prepends the user's start word if it was not found in the database
+        if (userProvidedWord && !normalizedStart.equals(start.wordText())) {
+            generatedWords.add(normalizedStart);
+        }
+        // End of Code by Shriram
         generatedWords.add(start.wordText());
 
         int startingWordId = start.wordId();

@@ -65,9 +65,10 @@ public class RandomGeneratorTest {
         assertEquals(1, repository.savedStartingWordId);
     }
 
+    // Code by Shriram
     @Test
-    @DisplayName("Random generator uses a fallback start word when needed")
-    void randomGenerationFallsBackToRandomStartWordWhenStartWordIsMissing() throws SQLException {
+    @DisplayName("Random generator includes the user's start word even when it is not in the database")
+    void randomGenerationPrependsTheUserStartWordWhenItIsNotInTheDatabase() throws SQLException {
         FakeGeneratorRepository repository = new FakeGeneratorRepository();
         repository.startWords = List.of(
             new WeightedWord(10, "alpha", 1),
@@ -80,12 +81,13 @@ public class RandomGeneratorTest {
             new Normalizer()
         );
 
-        String sentence = generator.generateRandom("missing", 2);
+        String sentence = generator.generateRandom("missing", 3);
 
-        assertEquals("beta", sentence);
-        assertEquals("beta", repository.savedSentenceText);
-        assertEquals(20, repository.savedStartingWordId);
+        assertEquals("missing beta", sentence, "Expected the user's start word to appear first followed by the fallback word");
+        assertEquals("missing beta", repository.savedSentenceText, "Expected the full sentence with prepended start word to be stored");
+        assertEquals(20, repository.savedStartingWordId, "Expected the chosen fallback start word ID to be stored");
     }
+    // End of Code by Shriram
 
     @Test
     @DisplayName("Random generator returns empty string when no start word exists")
