@@ -42,6 +42,7 @@ import generator.GenerationAlgorithm;
 import generator.GenerationService;
 import generator.WeightedWord;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -49,6 +50,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -69,10 +71,12 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import parser.Normalizer;
@@ -145,7 +149,8 @@ public class SentenceBuilderApp extends Application {
     private Spinner<Integer> reportSentenceLimitSpinner;
     private CheckBox duplicatesOnlyCheckBox;
     private String draftTopSuggestion = "";
-
+    private boolean suppressDraftSuggestionPreview;
+    private Pane draftSuggestionOverlay;
     // sammy 3/30: reuses the same empty-state message whenever autocomplete is reset after startup or a new import.
     private static final String DEFAULT_AUTOCOMPLETE_MESSAGE = "Suggestions show up here after you request them.";
     // sammy 3/30: keeps the live draft hint clear when there is not a suggestion ready to accept with tab.
@@ -273,7 +278,6 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createDraftPane() {
-        // The draft pane is the shared "workspace" that generation and autocomplete both feed.
         Label title = titledLabel("Sentence Draft");
         Label instructions = new Label("Type directly, single-click an autocomplete suggestion, or press Tab to accept the top draft suggestion.");
         instructions.setWrapText(true);
@@ -286,35 +290,56 @@ public class SentenceBuilderApp extends Application {
         sentenceDraftArea.setMinHeight(340);
         sentenceDraftArea.setMaxHeight(560);
         sentenceDraftArea.setMaxWidth(Double.MAX_VALUE);
-        // sammy 3/30: refreshes the draft status and the live top suggestion every time the user edits the draft.
+
+        draftSuggestionValue.setManaged(false);
+        draftSuggestionValue.setMouseTransparent(true);
+        draftSuggestionValue.setWrapText(false);
+        draftSuggestionValue.setVisible(false);
+        draftSuggestionValue.setStyle("-fx-font-family: 'Georgia'; -fx-font-size: 16px; -fx-text-fill: #7a7a7a;");
+
         sentenceDraftArea.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshDraftMetadata();
+            if (suppressDraftSuggestionPreview) {
+                return;
+            }
             refreshDraftSuggestionPreview();
         });
+
+        sentenceDraftArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+        sentenceDraftArea.scrollTopProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+        sentenceDraftArea.scrollLeftProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+        sentenceDraftArea.widthProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+        sentenceDraftArea.heightProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+
         sentenceDraftArea.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.TAB && !draftTopSuggestion.isBlank()) {
-                // sammy 3/30: lets tab accept the current top suggestion instead of inserting tab characters into the draft.
                 event.consume();
                 applySuggestionSelection(draftTopSuggestion);
             }
         });
 
+        draftSuggestionOverlay = new Pane(draftSuggestionValue);
+        draftSuggestionOverlay.setMouseTransparent(true);
+        draftSuggestionOverlay.setPickOnBounds(false);
+        draftSuggestionOverlay.prefWidthProperty().bind(sentenceDraftArea.widthProperty());
+        draftSuggestionOverlay.prefHeightProperty().bind(sentenceDraftArea.heightProperty());
+
+        StackPane draftEditor = new StackPane(sentenceDraftArea, draftSuggestionOverlay);
+        StackPane.setAlignment(draftSuggestionOverlay, Pos.TOP_LEFT);
+
         Button useLastWordForSuggestionsButton = new Button("Suggest from Last");
         useLastWordForSuggestionsButton.setOnAction(event -> {
-            // This lets the user continue autocomplete from the current sentence draft rather
-            // than manually copying the final word into the autocomplete form.
             String lastWord = getLastDraftWord();
             if (lastWord.isBlank()) {
                 log("Draft is empty, so there is no last word to suggest from.");
                 return;
             }
-                autocompleteCommittedWordField.setText(lastWord);
-                requestSuggestions(lastWord, ' ', suggestionLimitSpinner.getValue(), true);
+            autocompleteCommittedWordField.setText(lastWord);
+            requestSuggestions(lastWord, ' ', suggestionLimitSpinner.getValue(), true);
         });
 
         Button useLastWordForGenerationButton = new Button("Generate from Last");
         useLastWordForGenerationButton.setOnAction(event -> {
-            // Same idea as the suggestions button above, but for sentence generation.
             String lastWord = getLastDraftWord();
             if (lastWord.isBlank()) {
                 log("Draft is empty, so there is no last word to generate from.");
@@ -351,10 +376,9 @@ public class SentenceBuilderApp extends Application {
         VBox box = new VBox(12,
             title,
             instructions,
-            sentenceDraftArea,
+            draftEditor,
             draftStatusValue,
             draftHelpValue,
-            draftSuggestionValue,
             actions
         );
         box.setPadding(new Insets(18));
@@ -363,7 +387,7 @@ public class SentenceBuilderApp extends Application {
         box.setMaxWidth(Double.MAX_VALUE);
         box.setFillWidth(true);
         box.setStyle(cardStyle("#fff7ee"));
-        VBox.setVgrow(sentenceDraftArea, Priority.ALWAYS);
+        VBox.setVgrow(draftEditor, Priority.ALWAYS);
         return box;
     }
 
@@ -877,17 +901,14 @@ public class SentenceBuilderApp extends Application {
                 suggestionLimitSpinner == null ? 5 : suggestionLimitSpinner.getValue()
             );
 
-            if (!state.hasSuggestions() || state.suggestions().isEmpty()) {
-                clearDraftSuggestionPreview("No draft suggestion available.");
+            if (state != null && state.hasSuggestions() && !state.suggestions().isEmpty()) {
+                draftTopSuggestion = state.suggestions().get(0);
+                draftSuggestionValue.setText(draftTopSuggestion);
+                draftSuggestionValue.setVisible(true);
                 return;
             }
 
-            String topSuggestion = state.suggestions().get(0);
-            draftTopSuggestion = topSuggestion;
-            draftSuggestionValue.setText(topSuggestion);
-            draftSuggestionValue.setVisible(true);
-            draftHelpValue.setText("Press Tab to accept: " + topSuggestion);
-            queueDraftSuggestionPosition();
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
         } catch (SQLException exception) {
             clearDraftSuggestionPreview("Live suggestions failed: " + exception.getMessage());
         }
@@ -925,7 +946,6 @@ public class SentenceBuilderApp extends Application {
             return;
         }
 
-        suppressDraftSuggestionPreview = true;
         appendWordToDraft(selectedWord);
         autocompleteCommittedWordField.setText(selectedWord);
         suggestionsView.getSelectionModel().clearSelection();
@@ -1027,7 +1047,6 @@ public class SentenceBuilderApp extends Application {
         if (contentNode != null) {
             var contentBounds = draftSuggestionOverlay.sceneToLocal(contentNode.localToScene(contentNode.getBoundsInLocal()));
             contentLeft = contentBounds.getMinX() + 6;
-            // sammy 4/7: keeps the content anchor a little above default without lifting the ghost suggestion too much.
             contentTop = contentBounds.getMinY() + 5;
             contentWidth = Math.max(80, contentBounds.getWidth() - 12);
         }
