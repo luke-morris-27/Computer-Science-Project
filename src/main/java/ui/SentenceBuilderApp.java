@@ -661,7 +661,7 @@ public class SentenceBuilderApp extends Application {
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
         controls.add(new Label("Search"), 0, 2);
-        controls.add(reportSearchField, 1, 2);
+        controls.add(reportSearchField, 1, 2, 2, 1);
         controls.add(reportSecondWordField, 2, 2);
 
         VBox content = new VBox(14,
