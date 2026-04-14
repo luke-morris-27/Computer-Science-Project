@@ -711,12 +711,8 @@ public class SentenceBuilderApp extends Application {
         new ReadOnlyObjectWrapper<>(cell.getValue().precedesCount()));
         precedesColumn.setPrefWidth(100);
 
-        table.getColumns().addAll(wordColumn, totalColumn, startColumn, endColumn);
+        table.getColumns().addAll(wordColumn, totalColumn, startColumn, endColumn, followsColumn, precedesColumn);
         
-        
-        if (!reportSecondWordField.getText().isBlank()) {
-            table.getColumns().addAll(followsColumn, precedesColumn);
-        }
 
         return table;
     }
