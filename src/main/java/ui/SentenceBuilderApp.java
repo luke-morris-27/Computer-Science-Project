@@ -704,10 +704,12 @@ public class SentenceBuilderApp extends Application {
         TableColumn<WordReportView, Integer> followsColumn = new TableColumn<>("Follows");
         followsColumn.setCellValueFactory(cell -> 
         new ReadOnlyObjectWrapper<>(cell.getValue().followsCount()));
+        followsColumn.setPrefWidth(100);
 
         TableColumn<WordReportView, Integer> precedesColumn = new TableColumn<>("Precedes");
         precedesColumn.setCellValueFactory(cell -> 
         new ReadOnlyObjectWrapper<>(cell.getValue().precedesCount()));
+        precedesColumn.setPrefWidth(100);
 
         if (!reportSecondWordField.getText().isBlank()) {
         table.getColumns().addAll(followsColumn, precedesColumn);
