@@ -866,7 +866,6 @@ public class SentenceBuilderApp extends Application {
 
         String lastWord = getLastDraftWord();
         if (lastWord.isBlank()) {
-            resetAutocompleteSuggestions();
             clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
             return;
         }
@@ -877,17 +876,18 @@ public class SentenceBuilderApp extends Application {
                 ' ',
                 suggestionLimitSpinner == null ? 5 : suggestionLimitSpinner.getValue()
             );
-            renderAutocompleteState(state);
 
-            // sammy 3/30: surfaces only the first suggestion as the quick tab-to-accept preview in the draft pane.
-            if (state.hasSuggestions()) {
-                draftTopSuggestion = state.suggestions().get(0);
-                draftSuggestionValue.setText("Top suggestion: " + draftTopSuggestion + " (press Tab to accept)");
-            } else if (state.outcome() == AutocompleteViewState.AutocompleteOutcome.NO_RESULTS) {
-                clearDraftSuggestionPreview("No top suggestion found after '" + lastWord + "'.");
-            } else {
-                clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+            if (!state.hasSuggestions() || state.suggestions().isEmpty()) {
+                clearDraftSuggestionPreview("No draft suggestion available.");
+                return;
             }
+
+            String topSuggestion = state.suggestions().get(0);
+            draftTopSuggestion = topSuggestion;
+            draftSuggestionValue.setText(topSuggestion);
+            draftSuggestionValue.setVisible(true);
+            draftHelpValue.setText("Press Tab to accept: " + topSuggestion);
+            queueDraftSuggestionPosition();
         } catch (SQLException exception) {
             clearDraftSuggestionPreview("Live suggestions failed: " + exception.getMessage());
         }
@@ -925,6 +925,7 @@ public class SentenceBuilderApp extends Application {
             return;
         }
 
+        suppressDraftSuggestionPreview = true;
         appendWordToDraft(selectedWord);
         autocompleteCommittedWordField.setText(selectedWord);
         suggestionsView.getSelectionModel().clearSelection();
@@ -936,6 +937,7 @@ public class SentenceBuilderApp extends Application {
         suggestionsView.getItems().setAll(state.suggestions());
         suggestionsView.getSelectionModel().clearSelection();
         autocompleteStatusValue.setText(state.feedbackMessage());
+        updateDraftSuggestionPreview(state);
 
         if (state.hasSuggestions()) {
             autocompletePlaceholderLabel.setText("Suggestions are ready. Click one to keep building your draft.");
@@ -943,7 +945,28 @@ public class SentenceBuilderApp extends Application {
             return;
         }
 
-        autocompletePlaceholderLabel.setText(state.feedbackMessage().isBlank() ? DEFAULT_AUTOCOMPLETE_MESSAGE : state.feedbackMessage());
+        autocompletePlaceholderLabel.setText(
+            state.feedbackMessage().isBlank() ? DEFAULT_AUTOCOMPLETE_MESSAGE : state.feedbackMessage()
+        );
+    }
+
+    // sammy 4/7: keeps the draft-side tab hint matched to whatever autocomplete most recently found.
+    private void updateDraftSuggestionPreview(AutocompleteViewState state) {
+        if (state == null || !state.hasSuggestions() || state.suggestions().isEmpty()) {
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+            return;
+        }
+
+        String topSuggestion = state.suggestions().get(0);
+        if (topSuggestion == null || topSuggestion.isBlank()) {
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+            return;
+        }
+
+        draftTopSuggestion = topSuggestion;
+        draftSuggestionValue.setText(topSuggestion);
+        draftSuggestionValue.setVisible(true);
+        queueDraftSuggestionPosition();
     }
 
     // sammy 3/30: avoids noisy log spam while still surfacing important autocomplete outcomes to the activity log.
@@ -965,7 +988,111 @@ public class SentenceBuilderApp extends Application {
     // sammy 3/30: clears the saved tab suggestion and replaces it with a plain-language hint for the draft pane.
     private void clearDraftSuggestionPreview(String message) {
         draftTopSuggestion = "";
-        draftSuggestionValue.setText(message);
+        draftSuggestionValue.setText("");
+        draftSuggestionValue.setVisible(false);
+
+        if (message != null && !message.isBlank()) {
+            draftHelpValue.setText(message);
+        }
+    }
+
+    // sammy 4/7: waits until JavaFX finishes laying out the draft box before placing the ghost text again.
+    private void queueDraftSuggestionPosition() {
+        Platform.runLater(this::positionDraftSuggestionNearCaret);
+    }
+
+    // sammy 4/7: formats the inline suggestion the same way tab accept would add it into the draft.
+    private String buildDraftGhostSuggestion(String suggestion) {
+        if (suggestion == null || suggestion.isBlank()) {
+            return "";
+        }
+        // sammy 4/7: keeps just the word here because the visual space is handled in the overlay positioning math.
+        return suggestion;
+    }
+
+    // sammy 4/7: measures the draft text itself so the ghost word can move with the typed line instead of staying in one fixed spot.
+    private void positionDraftSuggestionNearCaret() {
+        if (!draftSuggestionValue.isVisible() || sentenceDraftArea.getScene() == null || draftSuggestionOverlay == null) {
+            return;
+        }
+
+        draftSuggestionValue.applyCss();
+        draftSuggestionValue.autosize();
+
+        // sammy 4/7: uses the real content area when possible so wrapping and scrolling line up better with the draft text.
+        double contentLeft = 12;
+        double contentTop = 10;
+        double contentWidth = Math.max(80, sentenceDraftArea.getWidth() - 24);
+        Node contentNode = sentenceDraftArea.lookup(".content");
+        if (contentNode != null) {
+            var contentBounds = draftSuggestionOverlay.sceneToLocal(contentNode.localToScene(contentNode.getBoundsInLocal()));
+            contentLeft = contentBounds.getMinX() + 6;
+            // sammy 4/7: keeps the content anchor a little above default without lifting the ghost suggestion too much.
+            contentTop = contentBounds.getMinY() + 5;
+            contentWidth = Math.max(80, contentBounds.getWidth() - 12);
+        }
+
+        // sammy 4/7: positions the ghost text from the current draft prefix so it follows the typed line as the user keeps writing.
+        int caretPosition = Math.max(0, Math.min(sentenceDraftArea.getCaretPosition(), sentenceDraftArea.getText().length()));
+        String draftPrefix = sentenceDraftArea.getText().substring(0, caretPosition);
+        List<String> visualLines = measureDraftVisualLines(draftPrefix, contentWidth);
+        String currentLine = visualLines.isEmpty() ? "" : visualLines.get(visualLines.size() - 1);
+
+        // sammy 4/7: adds one visible word-space before the ghost text so it matches where the accepted word would really begin.
+        double leadingSpaceWidth = currentLine.isBlank() ? 0 : measureDraftTextWidth(" ");
+        double x = contentLeft + measureDraftTextWidth(currentLine) + leadingSpaceWidth - sentenceDraftArea.getScrollLeft() + 3;
+        // sammy 4/7: keeps the ghost text a little above the row baseline but just a touch lower than the last version.
+        double y = contentTop + (measureDraftLineHeight() * Math.max(0, visualLines.size() - 1)) - sentenceDraftArea.getScrollTop() - 5;
+        double maxX = Math.max(contentLeft, contentLeft + contentWidth - draftSuggestionValue.prefWidth(-1) - 8);
+        double minY = Math.max(0, contentTop - 2);
+        double maxY = Math.max(minY, sentenceDraftArea.getHeight() - draftSuggestionValue.getHeight() - 10);
+
+        draftSuggestionValue.relocate(Math.min(x, maxX), Math.min(Math.max(minY, y), maxY));
+        draftSuggestionValue.toFront();
+    }
+
+    // sammy 4/7: breaks the current draft prefix into the same visual rows the draft box is trying to show so the ghost word can sit after the current row.
+    private List<String> measureDraftVisualLines(String text, double maxWidth) {
+        List<String> visualLines = new ArrayList<>();
+        String[] paragraphs = text.split("\\R", -1);
+
+        for (String paragraph : paragraphs) {
+            if (paragraph.isEmpty()) {
+                visualLines.add("");
+                continue;
+            }
+
+            StringBuilder currentLine = new StringBuilder();
+            for (int i = 0; i < paragraph.length(); i++) {
+                char nextChar = paragraph.charAt(i);
+                String candidate = currentLine + String.valueOf(nextChar);
+                if (currentLine.length() > 0 && measureDraftTextWidth(candidate) > maxWidth) {
+                    visualLines.add(currentLine.toString());
+                    currentLine.setLength(0);
+                }
+                currentLine.append(nextChar);
+            }
+            visualLines.add(currentLine.toString());
+        }
+
+        if (visualLines.isEmpty()) {
+            visualLines.add("");
+        }
+        return visualLines;
+    }
+
+    // sammy 4/7: reuses the draft font to measure how wide a typed line is before placing the ghost suggestion after it.
+    private double measureDraftTextWidth(String text) {
+        Text helper = new Text(text == null ? "" : text);
+        helper.setFont(sentenceDraftArea.getFont());
+        return helper.getLayoutBounds().getWidth();
+    }
+
+    // sammy 4/7: measures one draft line so the ghost text can move down with wrapped or manual new lines.
+    private double measureDraftLineHeight() {
+        Text helper = new Text("Ay");
+        helper.setFont(sentenceDraftArea.getFont());
+        return helper.getLayoutBounds().getHeight();
     }
 
     private void refreshReports() {
