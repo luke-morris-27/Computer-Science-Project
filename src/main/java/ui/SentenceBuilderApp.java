@@ -1369,34 +1369,36 @@ public class SentenceBuilderApp extends Application {
             return sentence;
         }
 
-        public int countPreceding(String word, String previousWord) {
-            if (parseResult == null) {
-                return 0;
+        public int countPreceding(String word, String prevWord) {
+            int count = 0;
+
+            for (String sentence : generatedSentences) {
+                String[] tokens = sentence.toLowerCase().split("\\s+");
+
+                for (int i = 1; i < tokens.length; i++) {
+                    if (tokens[i].equals(word) && tokens[i - 1].equals(prevWord)) {
+                        count++;
+                    }
+                }
             }
 
-            Map<String, Map<String, Integer>> map = parseResult.nextWordCounts();
-
-            Map<String, Integer> nextWords = map.get(previousWord);
-
-            if (nextWords == null) {
-                return 0;
-            }
-
-            return nextWords.getOrDefault(word, 0);
+            return count;
         }
 
         public int countFollowing(String word, String nextWord) {
-            if (parseResult == null) {
-                return 0;
+            int count = 0;
+
+            for (String sentence : generatedSentences) { // or whatever list you use
+                String[] tokens = sentence.toLowerCase().split("\\s+");
+
+                for (int i = 0; i < tokens.length - 1; i++) {
+                    if (tokens[i].equals(word) && tokens[i + 1].equals(nextWord)) {
+                        count++;
+                    }
+                }
             }
 
-            Map<String, Integer> nextWords = parseResult.nextWordCounts().get(word);
-
-            if (nextWords == null) {
-                return 0;
-            }
-
-            return nextWords.getOrDefault(nextWord, 0);
+            return count;
         }
 
         private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
