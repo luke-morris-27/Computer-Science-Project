@@ -1299,8 +1299,8 @@ public class SentenceBuilderApp extends Application {
                     w.totalCount(),
                     w.startCount(),
                     w.endCount(),
-                    w.follows(),
-                    w.precedes()
+                    w.followsCount(),
+                    w.precedesCount()
                 );
             })
             .limit(limit)
