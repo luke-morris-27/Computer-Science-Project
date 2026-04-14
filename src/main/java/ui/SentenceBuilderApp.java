@@ -627,7 +627,7 @@ public class SentenceBuilderApp extends Application {
         reportSearchField.setPromptText("Search words...");
 
         reportSecondWordField = new TextField();
-        reportSecondWordField.setPromptText("Optional word for relation to search word");
+        reportSecondWordField.setPromptText("Word relations to search word");
 
         reportWordLimitSpinner = new Spinner<>();
         reportWordLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 50));
@@ -661,7 +661,7 @@ public class SentenceBuilderApp extends Application {
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
         controls.add(new Label("Search"), 0, 2);
-        controls.add(reportSearchField, 1, 2, 3, 1);
+        controls.add(reportSearchField, 1, 2);
         controls.add(new Label("Second word"), 3, 2);
         controls.add(reportSecondWordField, 3, 2);
 
