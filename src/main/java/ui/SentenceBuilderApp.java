@@ -712,11 +712,13 @@ public class SentenceBuilderApp extends Application {
         precedesColumn.setPrefWidth(100);
 
         table.getColumns().addAll(wordColumn, totalColumn, startColumn, endColumn);
-        return table;
+        
         
         if (!reportSecondWordField.getText().isBlank()) {
             table.getColumns().addAll(followsColumn, precedesColumn);
         }
+
+        return table;
     }
 
     private VBox createActivityLogPane() {
