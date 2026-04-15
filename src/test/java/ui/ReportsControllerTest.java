@@ -62,17 +62,32 @@ class ReportsControllerTest {
         assertEquals("hello", reportingService.lastSearchText);
     }
 
+    @Test
+    @DisplayName("Search relation text is normalized before delegating")
+    void searchRelationTextIsNormalizedBeforeDelegating() throws Exception {
+        FakeReportingService reportingService = new FakeReportingService();
+        ReportsController controller = new ReportsController(reportingService);
+
+        controller.listWords(null, 25, "  HeLLo  ", "  WoRLd  ");
+
+        assertEquals(WordReportSort.ALPHABETICAL, reportingService.lastSort);
+        assertEquals(25, reportingService.lastLimit);
+        assertEquals("hello", reportingService.lastSearchText);
+        assertEquals("world", reportingService.lastSecondWord);
+    }
+
     private static final class FakeReportingService implements UiReportingService {
         private WordReportSort lastSort;
         private int lastLimit;
         private boolean lastOnlyDuplicates;
         private String lastSearchText;
+        private String lastSecondWord;
 
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit) throws SQLException {
             this.lastSort = sort;
             this.lastLimit = limit;
-            return List.of(new WordReportView("alpha", 10, 2, 1));
+            return List.of(new WordReportView("alpha", 10, 2, 1, 0, 0));
         }
 
         @Override
@@ -80,7 +95,16 @@ class ReportsControllerTest {
             this.lastSort = sort;
             this.lastLimit = limit;
             this.lastSearchText = searchText;
-            return List.of(new WordReportView("alpha", 10, 2, 1));
+            return List.of(new WordReportView("alpha", 10, 2, 1, 0, 0));
+        }
+
+        @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText, String secondWord) throws SQLException {
+            this.lastSort = sort;
+            this.lastLimit = limit;
+            this.lastSearchText = searchText;
+            this.lastSecondWord = secondWord;
+            return List.of(new WordReportView("alpha", 10, 2, 1, 3, 4));
         }
 
         @Override

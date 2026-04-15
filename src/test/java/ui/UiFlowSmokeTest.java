@@ -85,12 +85,17 @@ class UiFlowSmokeTest {
     private static final class FakeReportingService implements UiReportingService {
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit) throws SQLException {
-            return List.of(new WordReportView("hello", 5, 2, 1));
+            return List.of(new WordReportView("hello", 5, 2, 1, 0, 0));
         }
 
         @Override
         public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) throws SQLException {
-            return List.of(new WordReportView("hello", 5, 2, 1));
+            return List.of(new WordReportView("hello", 5, 2, 1, 0, 0));
+        }
+
+        @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText, String secondWord) throws SQLException {
+            return List.of(new WordReportView("hello", 5, 2, 1, 0, 0));
         }
 
         @Override
