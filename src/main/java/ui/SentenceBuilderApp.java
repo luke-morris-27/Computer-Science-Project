@@ -66,6 +66,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.skin.TextAreaSkin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
@@ -316,9 +317,12 @@ public class SentenceBuilderApp extends Application {
         sentenceDraftArea.widthProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.heightProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.TAB && !draftTopSuggestion.isBlank()) {
+            // sammy 4/14: only lets tab accept the ghost suggestion when the caret is sitting at the end of the draft.
+            if (event.getCode() == KeyCode.TAB && !draftTopSuggestion.isBlank() && isCaretAtDraftEnd()) {
+                // sammy 4/14: keeps the tab shortcut matched to the same end-of-draft rule that controls ghost text visibility.
                 event.consume();
-                applySuggestionSelection(draftTopSuggestion);
+                // sammy 4/14: lets tab accept the word and also add the real separator space that ghost text now waits for.
+                applySuggestionSelection(draftTopSuggestion, true);
             }
         });
 
@@ -819,21 +823,33 @@ public class SentenceBuilderApp extends Application {
         }
     }
 
-    private void appendWordToDraft(String word) {
+    private void appendWordToDraft(String word, boolean appendTrailingSpace) {
         // Suggestions are appended with whitespace normalization so the draft stays readable.
         if (word == null || word.isBlank()) {
             return;
         }
 
-        String currentDraft = sentenceDraftArea.getText().trim();
-        if (currentDraft.isBlank()) {
-            sentenceDraftArea.setText(word.trim());
-        } else {
-            sentenceDraftArea.setText(currentDraft + " " + word.trim());
-        }
+        // sammy 4/14: rebuilds the draft text in one helper so tab can optionally leave a trailing space behind for the next ghost suggestion.
+        sentenceDraftArea.setText(buildDraftAfterAppendingWord(sentenceDraftArea.getText(), word, appendTrailingSpace));
         // sammy 3/30: moves the caret to the end so the draft still feels correct if the user wants to keep typing.
         sentenceDraftArea.positionCaret(sentenceDraftArea.getText().length());
         log("Added suggestion to draft: " + word);
+    }
+
+    // sammy 4/14: keeps the "append accepted suggestion" formatting in one simple helper so click and tab can differ only by trailing-space behavior.
+    static String buildDraftAfterAppendingWord(String currentDraft, String word, boolean appendTrailingSpace) {
+        // sammy 4/14: treats null inputs like blanks so this helper stays safe during ui setup and tests.
+        String safeDraft = currentDraft == null ? "" : currentDraft.trim();
+        // sammy 4/14: normalizes the accepted word before rebuilding the draft text.
+        String safeWord = word == null ? "" : word.trim();
+        // sammy 4/14: returns the original draft unchanged if there is no usable word to append.
+        if (safeWord.isBlank()) {
+            return safeDraft;
+        }
+        // sammy 4/14: joins the accepted word onto the draft with one normal separator space when the draft already has content.
+        String updatedDraft = safeDraft.isBlank() ? safeWord : safeDraft + " " + safeWord;
+        // sammy 4/14: adds one real trailing space only for the tab flow so ghost text can appear again immediately.
+        return appendTrailingSpace ? updatedDraft + " " : updatedDraft;
     }
 
     private void appendTextToDraft(String text) {
@@ -956,6 +972,12 @@ public class SentenceBuilderApp extends Application {
 
     // sammy 3/30: keeps the click flow in one place so adding a suggestion and loading the next list stay in sync.
     private void applySuggestionSelection(String selectedWord) {
+        // sammy 4/14: keeps click-based suggestion acceptance using the normal no-trailing-space behavior.
+        applySuggestionSelection(selectedWord, false);
+    }
+
+    // sammy 4/14: keeps the acceptance flow in one place while letting tab choose whether it should leave a trailing space behind.
+    private void applySuggestionSelection(String selectedWord, boolean appendTrailingSpace) {
         if (selectedWord == null || selectedWord.isBlank()) {
             return;
         }
@@ -963,10 +985,16 @@ public class SentenceBuilderApp extends Application {
         // sammy 4/7: pauses the draft preview, writes the accepted word, syncs the autocomplete field,
         // and then asks autocomplete for the next word so the ghost text can keep moving forward.
         suppressDraftSuggestionPreview = true;
-        appendWordToDraft(selectedWord);
+        // sammy 4/14: lets tab acceptance add a real trailing space while keeping the click flow unchanged.
+        appendWordToDraft(selectedWord, appendTrailingSpace);
         suppressDraftSuggestionPreview = false;
         autocompleteCommittedWordField.setText(selectedWord);
         suggestionsView.getSelectionModel().clearSelection();
+        if (appendTrailingSpace) {
+            // sammy 4/14: waits to load the next ghost suggestion until JavaFX finishes moving the caret after tab inserts the word and space.
+            queueSuggestionRefreshAfterTabAcceptance(selectedWord);
+            return;
+        }
         requestSuggestions(selectedWord, ' ', suggestionLimitSpinner.getValue(), false);
     }
 
@@ -1005,7 +1033,8 @@ public class SentenceBuilderApp extends Application {
         }
 
         draftSuggestionValue.setText(buildDraftGhostSuggestion(draftTopSuggestion));
-        draftSuggestionValue.setVisible(true);
+        // sammy 4/14: only turns on the ghost label when the caret is at the end and the user has already typed a real separator space.
+        draftSuggestionValue.setVisible(shouldShowDraftGhostSuggestion());
         draftSuggestionValue.applyCss();
         draftSuggestionValue.autosize();
         queueDraftSuggestionPosition();
@@ -1043,6 +1072,62 @@ public class SentenceBuilderApp extends Application {
         Platform.runLater(this::positionDraftSuggestionNearCaret);
     }
 
+    // sammy 4/14: reloads suggestions after tab acceptance only after JavaFX finishes updating the caret for the new trailing space.
+    private void queueSuggestionRefreshAfterTabAcceptance(String selectedWord) {
+        // sammy 4/14: hides the old ghost preview during the tab transition so stale positioning does not flash on screen.
+        clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+        // sammy 4/14: lets the text area finish rewriting its text and caret before the next suggestion is rendered.
+        Platform.runLater(() -> {
+            // sammy 4/14: restores the caret to the true text end in case the tab rewrite briefly leaves it on the old accepted word.
+            sentenceDraftArea.positionCaret(sentenceDraftArea.getText().length());
+            // sammy 4/14: asks JavaFX to refresh the control layout so the skin recalculates the caret bounds for the new trailing space.
+            sentenceDraftArea.requestLayout();
+            // sammy 4/14: waits one more pulse and then requests the next suggestion so the new ghost text uses the updated caret bounds.
+            Platform.runLater(() -> requestSuggestions(
+                selectedWord,
+                ' ',
+                suggestionLimitSpinner == null ? 5 : suggestionLimitSpinner.getValue(),
+                false
+            ));
+        });
+    }
+
+    // sammy 4/14: keeps the "show ghost text" rule in one place so the draft preview and tab shortcut stay consistent.
+    private boolean isCaretAtDraftEnd() {
+        // sammy 4/14: compares the live caret position against the full draft length instead of guessing from line layout.
+        return isCaretAtDraftEnd(sentenceDraftArea.getText(), sentenceDraftArea.getCaretPosition());
+    }
+
+    // sammy 4/14: gives the caret-at-end rule a simple helper so it is easy to test without spinning up the full app ui.
+    static boolean isCaretAtDraftEnd(String draftText, int caretPosition) {
+        // sammy 4/14: treats null text like an empty draft so the check stays safe during setup paths.
+        String safeDraftText = draftText == null ? "" : draftText;
+        // sammy 4/14: clamps the caret into the valid text range before deciding whether it is truly at the end.
+        int safeCaretPosition = Math.max(0, Math.min(caretPosition, safeDraftText.length()));
+        // sammy 4/14: returns true only when the caret is exactly at the last character boundary in the draft.
+        return safeCaretPosition == safeDraftText.length();
+    }
+
+    // sammy 4/14: keeps ghost text hidden until the user is at the end and has typed a real trailing space for the next word to follow.
+    private boolean shouldShowDraftGhostSuggestion() {
+        // sammy 4/14: reuses one helper so visibility stays matched between refresh-time and live caret movement.
+        return shouldShowDraftGhostSuggestion(sentenceDraftArea.getText(), sentenceDraftArea.getCaretPosition(), draftTopSuggestion);
+    }
+
+    // sammy 4/14: gives the ghost-visibility rule a simple testable helper without needing the full JavaFX app to run.
+    static boolean shouldShowDraftGhostSuggestion(String draftText, int caretPosition, String suggestion) {
+        // sammy 4/14: requires a real suggestion first so the ghost label never appears empty.
+        if (suggestion == null || suggestion.isBlank()) {
+            return false;
+        }
+        // sammy 4/14: only allows the ghost text when the caret is truly at the draft end.
+        if (!isCaretAtDraftEnd(draftText, caretPosition)) {
+            return false;
+        }
+        // sammy 4/14: only allows the ghost text after the user has typed actual whitespace at the end of the draft.
+        return draftEndsWithWhitespace(draftText);
+    }
+
     // sammy 4/7: formats the inline suggestion the same way tab accept would add it into the draft.
     private String buildDraftGhostSuggestion(String suggestion) {
         if (suggestion == null || suggestion.isBlank()) {
@@ -1054,6 +1139,17 @@ public class SentenceBuilderApp extends Application {
 
     // sammy 4/7: measures the draft text itself so the ghost word can move with the typed line instead of staying in one fixed spot.
     private void positionDraftSuggestionNearCaret() {
+        // sammy 4/14: hides the ghost text immediately unless the user is at the end and has already typed the separator space.
+        if (!shouldShowDraftGhostSuggestion()) {
+            draftSuggestionValue.setVisible(false);
+            return;
+        }
+
+        // sammy 4/14: brings the ghost text back when there is still a saved suggestion and the draft is in the right state to preview it.
+        if (!draftTopSuggestion.isBlank()) {
+            draftSuggestionValue.setVisible(true);
+        }
+
         if (!draftSuggestionValue.isVisible() || sentenceDraftArea.getScene() == null || draftSuggestionOverlay == null) {
             return;
         }
@@ -1074,53 +1170,40 @@ public class SentenceBuilderApp extends Application {
             contentWidth = Math.max(80, contentBounds.getWidth() - 12);
         }
 
-        // sammy 4/7: positions the ghost text from the current draft prefix so it follows the typed line as the user keeps writing.
-        int caretPosition = Math.max(0, Math.min(sentenceDraftArea.getCaretPosition(), sentenceDraftArea.getText().length()));
-        String draftPrefix = sentenceDraftArea.getText().substring(0, caretPosition);
-        List<String> visualLines = measureDraftVisualLines(draftPrefix, contentWidth);
-        String currentLine = visualLines.isEmpty() ? "" : visualLines.get(visualLines.size() - 1);
+        // sammy 4/14: anchors from the rendered trailing-space character first because it stays more stable than the live caret after repeated tab inserts.
+        var insertionBounds = getDraftInsertionBoundsInOverlay();
+        // sammy 4/14: falls back to the live caret only if the rendered end-of-text bounds are not available yet during layout.
+        if (insertionBounds == null) {
+            insertionBounds = getDraftCaretBoundsInOverlay();
+        }
+        // sammy 4/14: waits for JavaFX to expose at least one usable end-of-text anchor before placing the ghost suggestion.
+        if (insertionBounds == null) {
+            return;
+        }
 
-        // sammy 4/7: adds one visible word-space before the ghost text so it matches where the accepted word would really begin.
-        double leadingSpaceWidth = currentLine.isBlank() ? 0 : measureDraftTextWidth(" ");
-        double x = contentLeft + measureDraftTextWidth(currentLine) + leadingSpaceWidth - sentenceDraftArea.getScrollLeft() + 3;
-        // sammy 4/7: keeps the ghost text a little above the row baseline but just a touch lower than the last version.
-        double y = contentTop + (measureDraftLineHeight() * Math.max(0, visualLines.size() - 1)) - sentenceDraftArea.getScrollTop() - 5;
+        // sammy 4/14: measures the plain ghost word because the separator space now has to be real typed whitespace before the preview can appear.
+        double inlineGhostWidth = measureDraftTextWidth(draftSuggestionValue.getText());
+        // sammy 4/14: starts the ghost word exactly at the rendered end of the trailing space instead of trusting the live caret path alone.
+        double x = insertionBounds.getMaxX();
+        // sammy 4/14: anchors the ghost label to the same rendered row as the draft end so later tabs stay lined up with the text.
+        double y = insertionBounds.getMinY() - 1;
+        // sammy 4/14: tracks the last safe right edge inside the draft content area before the ghost text would overlap the border.
+        double contentRight = contentLeft + contentWidth - 8;
+        // sammy 4/14: moves the ghost word to the next line only when there is not enough visible room after the caret.
+        boolean wrappedGhost = shouldWrapGhostAfterCaret(x, inlineGhostWidth, contentRight);
+        if (wrappedGhost) {
+            // sammy 4/14: starts a wrapped ghost word at the normal left text edge of the next visual line.
+            x = contentLeft + 3;
+            // sammy 4/14: steps down using the rendered end-of-text height so wrapped ghost text stays aligned on later lines too.
+            y = insertionBounds.getMinY() + insertionBounds.getHeight() - 1;
+        }
+
         double maxX = Math.max(contentLeft, contentLeft + contentWidth - draftSuggestionValue.prefWidth(-1) - 8);
         double minY = Math.max(0, contentTop - 2);
         double maxY = Math.max(minY, sentenceDraftArea.getHeight() - draftSuggestionValue.getHeight() - 10);
 
         draftSuggestionValue.relocate(Math.min(x, maxX), Math.min(Math.max(minY, y), maxY));
         draftSuggestionValue.toFront();
-    }
-
-    // sammy 4/7: breaks the current draft prefix into the same visual rows the draft box is trying to show so the ghost word can sit after the current row.
-    private List<String> measureDraftVisualLines(String text, double maxWidth) {
-        List<String> visualLines = new ArrayList<>();
-        String[] paragraphs = text.split("\\R", -1);
-
-        for (String paragraph : paragraphs) {
-            if (paragraph.isEmpty()) {
-                visualLines.add("");
-                continue;
-            }
-
-            StringBuilder currentLine = new StringBuilder();
-            for (int i = 0; i < paragraph.length(); i++) {
-                char nextChar = paragraph.charAt(i);
-                String candidate = currentLine + String.valueOf(nextChar);
-                if (currentLine.length() > 0 && measureDraftTextWidth(candidate) > maxWidth) {
-                    visualLines.add(currentLine.toString());
-                    currentLine.setLength(0);
-                }
-                currentLine.append(nextChar);
-            }
-            visualLines.add(currentLine.toString());
-        }
-
-        if (visualLines.isEmpty()) {
-            visualLines.add("");
-        }
-        return visualLines;
     }
 
     // sammy 4/7: reuses the draft font to measure how wide a typed line is before placing the ghost suggestion after it.
@@ -1130,11 +1213,67 @@ public class SentenceBuilderApp extends Application {
         return helper.getLayoutBounds().getWidth();
     }
 
-    // sammy 4/7: measures one draft line so the ghost text can move down with wrapped or manual new lines.
-    private double measureDraftLineHeight() {
-        Text helper = new Text("Ay");
-        helper.setFont(sentenceDraftArea.getFont());
-        return helper.getLayoutBounds().getHeight();
+    // sammy 4/14: converts the text area's real caret rectangle into the overlay pane that draws the ghost suggestion.
+    private javafx.geometry.Bounds getDraftCaretBoundsInOverlay() {
+        // sammy 4/14: uses the standard JavaFX text-area skin because it exposes the real caret bounds for the current wrapped line.
+        if (!(sentenceDraftArea.getSkin() instanceof TextAreaSkin textAreaSkin)) {
+            return null;
+        }
+        // sammy 4/14: asks JavaFX for the actual caret rectangle instead of estimating where the caret should be.
+        var caretBounds = textAreaSkin.getCaretBounds();
+        // sammy 4/14: stays safe during startup and relayout moments when the caret rectangle is not ready yet.
+        if (caretBounds == null) {
+            return null;
+        }
+        // sammy 4/14: maps the caret rectangle into the overlay coordinate system so the ghost label can sit exactly beside it.
+        return draftSuggestionOverlay.sceneToLocal(sentenceDraftArea.localToScene(caretBounds));
+    }
+
+    // sammy 4/14: maps the rendered final character in the draft into overlay space so ghost text can start from the visible end of the text.
+    private javafx.geometry.Bounds getDraftInsertionBoundsInOverlay() {
+        // sammy 4/14: only uses this path when the standard JavaFX skin is available to report real character bounds.
+        if (!(sentenceDraftArea.getSkin() instanceof TextAreaSkin textAreaSkin)) {
+            return null;
+        }
+        // sammy 4/14: reads the current draft once so the helper can safely inspect the rendered final character.
+        String draftText = sentenceDraftArea.getText();
+        // sammy 4/14: keeps the helper safe when there is no text or no trailing whitespace character to anchor from yet.
+        if (draftText == null || draftText.isEmpty() || !draftEndsWithWhitespace(draftText)) {
+            return null;
+        }
+        // sammy 4/14: asks JavaFX for the bounds of the actual trailing-space character instead of the sometimes-lagging caret path.
+        var characterBounds = textAreaSkin.getCharacterBounds(draftText.length() - 1);
+        // sammy 4/14: stays safe during startup or relayout moments when JavaFX has not resolved the character bounds yet.
+        if (characterBounds == null) {
+            return null;
+        }
+        // sammy 4/14: converts the character rectangle corners into the overlay coordinate system used by the ghost label.
+        var topLeft = draftSuggestionOverlay.sceneToLocal(
+            sentenceDraftArea.localToScene(characterBounds.getMinX(), characterBounds.getMinY())
+        );
+        // sammy 4/14: maps the bottom-right corner too so the ghost text can use the visible end of the rendered trailing space.
+        var bottomRight = draftSuggestionOverlay.sceneToLocal(
+            sentenceDraftArea.localToScene(characterBounds.getMaxX(), characterBounds.getMaxY())
+        );
+        // sammy 4/14: rebuilds the final rectangle in overlay space so the caller can place ghost text from the rendered text end.
+        return new javafx.geometry.BoundingBox(
+            topLeft.getX(),
+            topLeft.getY(),
+            Math.max(0, bottomRight.getX() - topLeft.getX()),
+            Math.max(0, bottomRight.getY() - topLeft.getY())
+        );
+    }
+
+    // sammy 4/14: checks whether the draft already ends with real whitespace that the caret has moved past.
+    static boolean draftEndsWithWhitespace(String draftText) {
+        // sammy 4/14: keeps the helper safe for null and empty drafts before reading the last character.
+        return draftText != null && !draftText.isEmpty() && Character.isWhitespace(draftText.charAt(draftText.length() - 1));
+    }
+
+    // sammy 4/14: decides whether the ghost word still fits on the current visual line once it starts beside the caret.
+    static boolean shouldWrapGhostAfterCaret(double ghostStartX, double ghostSuggestionWidth, double contentRight) {
+        // sammy 4/14: compares the ghost label's right edge against the content area's right edge in one simple fit check.
+        return ghostStartX + ghostSuggestionWidth > contentRight;
     }
 
     private void refreshReports() {
