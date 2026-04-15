@@ -282,7 +282,6 @@ public class SentenceBuilderApp extends Application {
     }
 
     private VBox createDraftPane() {
-        // The draft pane is the shared "workspace" that generation and autocomplete both feed.
         Label title = titledLabel("Sentence Draft");
         Label instructions = new Label("Type directly, single-click an autocomplete suggestion, or press Tab to accept the top draft suggestion.");
         instructions.setWrapText(true);
@@ -318,7 +317,6 @@ public class SentenceBuilderApp extends Application {
         sentenceDraftArea.heightProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.TAB && !draftTopSuggestion.isBlank()) {
-                // sammy 3/30: lets tab accept the current top suggestion instead of inserting tab characters into the draft.
                 event.consume();
                 applySuggestionSelection(draftTopSuggestion);
             }
@@ -337,20 +335,17 @@ public class SentenceBuilderApp extends Application {
 
         Button useLastWordForSuggestionsButton = new Button("Suggest from Last");
         useLastWordForSuggestionsButton.setOnAction(event -> {
-            // This lets the user continue autocomplete from the current sentence draft rather
-            // than manually copying the final word into the autocomplete form.
             String lastWord = getLastDraftWord();
             if (lastWord.isBlank()) {
                 log("Draft is empty, so there is no last word to suggest from.");
                 return;
             }
-                autocompleteCommittedWordField.setText(lastWord);
-                requestSuggestions(lastWord, ' ', suggestionLimitSpinner.getValue(), true);
+            autocompleteCommittedWordField.setText(lastWord);
+            requestSuggestions(lastWord, ' ', suggestionLimitSpinner.getValue(), true);
         });
 
         Button useLastWordForGenerationButton = new Button("Generate from Last");
         useLastWordForGenerationButton.setOnAction(event -> {
-            // Same idea as the suggestions button above, but for sentence generation.
             String lastWord = getLastDraftWord();
             if (lastWord.isBlank()) {
                 log("Draft is empty, so there is no last word to generate from.");
@@ -917,7 +912,6 @@ public class SentenceBuilderApp extends Application {
 
         String lastWord = getLastDraftWord();
         if (lastWord.isBlank()) {
-            resetAutocompleteSuggestions();
             clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
             return;
         }
@@ -990,25 +984,31 @@ public class SentenceBuilderApp extends Application {
             return;
         }
 
-        autocompletePlaceholderLabel.setText(state.feedbackMessage().isBlank() ? DEFAULT_AUTOCOMPLETE_MESSAGE : state.feedbackMessage());
+        autocompletePlaceholderLabel.setText(
+            state.feedbackMessage().isBlank() ? DEFAULT_AUTOCOMPLETE_MESSAGE : state.feedbackMessage()
+        );
     }
 
     // sammy 4/7: keeps the draft-side tab hint matched to whatever autocomplete most recently found.
     private void updateDraftSuggestionPreview(AutocompleteViewState state) {
         // sammy 4/7: shows the top suggestion as inline ghost text when there is one and hides it when there is not.
-        if (state != null && state.hasSuggestions()) {
-            // sammy 4/7: saves the current best suggestion, formats it the way it would be inserted, and then repositions it.
-            draftTopSuggestion = state.suggestions().get(0);
-            draftSuggestionValue.setText(buildDraftGhostSuggestion(draftTopSuggestion));
-            draftSuggestionValue.setVisible(true);
-            draftSuggestionValue.applyCss();
-            draftSuggestionValue.autosize();
-            queueDraftSuggestionPosition();
+        if (state == null || !state.hasSuggestions() || state.suggestions().isEmpty()) {
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
             return;
         }
 
-        // sammy 4/7: hides the ghost text when autocomplete does not have a usable next word.
-        clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+        // sammy 4/7: saves the current best suggestion, formats it the way it would be inserted, and then repositions it.
+        draftTopSuggestion = state.suggestions().get(0);
+        if (draftTopSuggestion == null || draftTopSuggestion.isBlank()) {
+            clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
+            return;
+        }
+
+        draftSuggestionValue.setText(buildDraftGhostSuggestion(draftTopSuggestion));
+        draftSuggestionValue.setVisible(true);
+        draftSuggestionValue.applyCss();
+        draftSuggestionValue.autosize();
+        queueDraftSuggestionPosition();
     }
 
     // sammy 3/30: avoids noisy log spam while still surfacing important autocomplete outcomes to the activity log.
@@ -1032,6 +1032,10 @@ public class SentenceBuilderApp extends Application {
         draftTopSuggestion = "";
         draftSuggestionValue.setText("");
         draftSuggestionValue.setVisible(false);
+
+        if (message != null && !message.isBlank()) {
+            draftHelpValue.setText(message);
+        }
     }
 
     // sammy 4/7: waits until JavaFX finishes laying out the draft box before placing the ghost text again.
