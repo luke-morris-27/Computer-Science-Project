@@ -146,6 +146,7 @@ public class SentenceBuilderApp extends Application {
     private Pane draftSuggestionOverlay;
 
     private TextField reportSearchField;
+    private TextField reportSecondWordField;
     private ComboBox<WordReportSort> reportSortBox;
     private Spinner<Integer> reportWordLimitSpinner;
     private Spinner<Integer> reportSentenceLimitSpinner;
@@ -625,6 +626,9 @@ public class SentenceBuilderApp extends Application {
         reportSearchField = new TextField();
         reportSearchField.setPromptText("Search words...");
 
+        reportSecondWordField = new TextField();
+        reportSecondWordField.setPromptText("Word relations to search word");
+
         reportWordLimitSpinner = new Spinner<>();
         reportWordLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 50));
         reportWordLimitSpinner.setEditable(true);
@@ -657,7 +661,8 @@ public class SentenceBuilderApp extends Application {
         controls.add(duplicatesOnlyCheckBox, 2, 1);
         controls.add(refreshButton, 3, 1);
         controls.add(new Label("Search"), 0, 2);
-        controls.add(reportSearchField, 1, 2, 3, 1);
+        controls.add(reportSearchField, 1, 2);
+        controls.add(reportSecondWordField, 2, 2, 2, 1);
 
         VBox content = new VBox(14,
             titledLabel("Reports"),
@@ -696,7 +701,19 @@ public class SentenceBuilderApp extends Application {
         endColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().endCount()));
         endColumn.setPrefWidth(100);
 
-        table.getColumns().addAll(wordColumn, totalColumn, startColumn, endColumn);
+        TableColumn<WordReportView, Integer> followsColumn = new TableColumn<>("Follows");
+        followsColumn.setCellValueFactory(cell -> 
+        new ReadOnlyObjectWrapper<>(cell.getValue().followsCount()));
+        followsColumn.setPrefWidth(100);
+
+        TableColumn<WordReportView, Integer> precedesColumn = new TableColumn<>("Precedes");
+        precedesColumn.setCellValueFactory(cell -> 
+        new ReadOnlyObjectWrapper<>(cell.getValue().precedesCount()));
+        precedesColumn.setPrefWidth(100);
+
+        table.getColumns().addAll(wordColumn, totalColumn, startColumn, endColumn, followsColumn, precedesColumn);
+        
+
         return table;
     }
 
@@ -1122,7 +1139,8 @@ public class SentenceBuilderApp extends Application {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
                 reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
-                reportSearchField == null ? "" : reportSearchField.getText()
+                reportSearchField == null ? "" : reportSearchField.getText(),
+                reportSecondWordField == null ? "" : reportSecondWordField.getText()
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
                 duplicatesOnlyCheckBox != null && duplicatesOnlyCheckBox.isSelected(),
@@ -1239,6 +1257,56 @@ public class SentenceBuilderApp extends Application {
                 .limit(limit)
                 .toList();
         }
+
+        @Override
+        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText, String secondWord){
+            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
+
+            // Filter by search word
+            if (searchText != null && !searchText.isBlank()) {
+                String searchLower = searchText.toLowerCase(Locale.ROOT);
+
+                words = words.stream()
+                    .filter(word -> word.wordText().equalsIgnoreCase(searchLower))
+                    .toList();
+            }
+
+            // If no second word → return normal results
+            if (secondWord == null || secondWord.isBlank()) {
+                return words.stream()
+                    .limit(limit)
+                    .map(w -> new WordReportView(
+                    w.wordText(),
+                    w.totalCount(),
+                    w.startCount(),
+                    w.endCount(),
+                    0,  // follows
+                    0   // precedes
+                ))
+                .toList();
+            }
+
+            String secondLower = secondWord.toLowerCase(Locale.ROOT);
+
+            // Compute relationships
+            return words.stream()
+                .map(w -> {
+                    int follows = state.countFollowing(w.wordText(), secondLower);
+                    int precedes = state.countPreceding(w.wordText(), secondLower);
+
+                    return new WordReportView(
+                    w.wordText(),
+                    w.totalCount(),
+                    w.startCount(),
+                    w.endCount(),
+                    w.followsCount(),
+                    w.precedesCount()
+                );
+            })
+            .limit(limit)
+            .toList();
+    }
+        
         @Override
         public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
             return state.listGeneratedSentences(onlyDuplicates, limit);
@@ -1299,6 +1367,38 @@ public class SentenceBuilderApp extends Application {
             // Generated sentences are saved in-memory so the reports tab can display history.
             generatedSentences.add(sentence);
             return sentence;
+        }
+
+        public int countPreceding(String word, String prevWord) {
+            if (parseResult == null) return 0;
+
+            word = normalizer.normalize(word);
+            prevWord = normalizer.normalize(prevWord);
+
+            // Reverse lookup: check all words that lead INTO 'word'
+            int count = 0;
+
+            for (Map.Entry<String, Map<String, Integer>> entry : parseResult.getNextWordCounts().entrySet()) {
+                String possiblePrev = entry.getKey();
+                Map<String, Integer> nextMap = entry.getValue();
+
+                if (possiblePrev.equals(prevWord)) {
+                    count += nextMap.getOrDefault(word, 0);
+                }
+            }
+
+            return count;
+        }
+
+        public int countFollowing(String word, String nextWord) {
+            if (parseResult == null) return 0;
+
+            word = normalizer.normalize(word);
+            nextWord = normalizer.normalize(nextWord);
+
+            return parseResult.getNextWordCounts()
+                .getOrDefault(word, Map.of())
+                .getOrDefault(nextWord, 0);
         }
 
         private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
@@ -1421,7 +1521,7 @@ public class SentenceBuilderApp extends Application {
                     word,
                     parseResult.getWordCounts().getOrDefault(word, 0),
                     parseResult.getSentenceStartCounts().getOrDefault(word, 0),
-                    parseResult.getSentenceEndCounts().getOrDefault(word, 0)
+                    parseResult.getSentenceEndCounts().getOrDefault(word, 0), 0, 0
                 ))
                 .sorted(comparator)
                 .limit(limit)
