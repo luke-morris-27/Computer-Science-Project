@@ -66,9 +66,10 @@ public class WeightedGeneratorTest {
         assertEquals(1, repository.savedStartingWordId, "Expected the original start word ID to be stored");
     }
 
+    // Code by Shriram
     @Test
-    @DisplayName("Weighted generator uses a start word when the given word is missing")
-    void weightedGenerationFallsBackToStartWordsWhenStartWordIsMissing() throws SQLException {
+    @DisplayName("Weighted generator includes the user's start word even when it is not in the database")
+    void weightedGenerationPrependsTheUserStartWordWhenItIsNotInTheDatabase() throws SQLException {
         FakeGeneratorRepository repository = new FakeGeneratorRepository();
         repository.startWords = List.of(
             new WeightedWord(10, "alpha", 1),
@@ -81,12 +82,13 @@ public class WeightedGeneratorTest {
             new Normalizer()
         );
 
-        String sentence = generator.generateWeighted("missing", 2);
+        String sentence = generator.generateWeighted("missing", 3);
 
-        assertEquals("beta", sentence, "Expected fallback start-word selection to use the weighted start words");
-        assertEquals("beta", repository.savedSentenceText, "Expected fallback generation to still be stored");
+        assertEquals("missing beta", sentence, "Expected the user's start word to appear first followed by the fallback word");
+        assertEquals("missing beta", repository.savedSentenceText, "Expected the full sentence with prepended start word to be stored");
         assertEquals(20, repository.savedStartingWordId, "Expected the chosen fallback start word ID to be stored");
     }
+    // End of Code by Shriram
 
     @Test
     @DisplayName("Weighted generator returns an empty result when no start word exists")

@@ -58,9 +58,10 @@ public class GreedyGeneratorTest {
         assertEquals(1, repository.savedStartingWordId, "Expected the requested start word ID to be stored");
     }
 
+    // Code by Shriram
     @Test
-    @DisplayName("Greedy generator uses the best start word when the given word is missing")
-    void greedyGenerationFallsBackToTheBestStartWordWhenTheRequestedStartIsMissing() throws SQLException {
+    @DisplayName("Greedy generator includes the user's start word even when it is not in the database")
+    void greedyGenerationPrependsTheUserStartWordWhenItIsNotInTheDatabase() throws SQLException {
         FakeGeneratorRepository repository = new FakeGeneratorRepository();
         repository.startWords = List.of(
             new WeightedWord(20, "beta", 4),
@@ -69,12 +70,13 @@ public class GreedyGeneratorTest {
 
         GreedyGenerator generator = new GreedyGenerator(repository, new Normalizer());
 
-        String sentence = generator.generateGreedy("missing", 2);
+        String sentence = generator.generateGreedy("missing", 3);
 
-        assertEquals("beta", sentence, "Expected greedy fallback to choose the first valid start word");
-        assertEquals("beta", repository.savedSentenceText, "Expected fallback generation to still be stored");
+        assertEquals("missing beta", sentence, "Expected the user's start word to appear first followed by the fallback word");
+        assertEquals("missing beta", repository.savedSentenceText, "Expected the full sentence with prepended start word to be stored");
         assertEquals(20, repository.savedStartingWordId, "Expected the chosen fallback start word ID to be stored");
     }
+    // End of Code by Shriram
 
     @Test
     @DisplayName("Greedy generator returns an empty result when no start word exists")
