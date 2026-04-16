@@ -1434,16 +1434,19 @@ public class SentenceBuilderApp extends Application {
             // Compute relationships
             return words.stream()
                 .map(w -> {
-                    int follows = state.countFollowing(w.wordText(), secondLower);
-                    int precedes = state.countPreceding(w.wordText(), secondLower);
+                    String baseWord = state.normalizer.normalize(w.wordText());
+                    String second = state.normalizer.normalize(secondLower);
+                    
+                    int follows = state.countFollowing(baseWord, second);
+                    int precedes = state.countPreceding(baseWord, second);
 
                     return new WordReportView(
                     w.wordText(),
                     w.totalCount(),
                     w.startCount(),
                     w.endCount(),
-                    w.followsCount(),
-                    w.precedesCount()
+                    follows,
+                    precedes
                 );
             })
             .limit(limit)
@@ -1512,27 +1515,6 @@ public class SentenceBuilderApp extends Application {
             return sentence;
         }
 
-        public int countPreceding(String word, String prevWord) {
-            if (parseResult == null) return 0;
-
-            word = normalizer.normalize(word);
-            prevWord = normalizer.normalize(prevWord);
-
-            // Reverse lookup: check all words that lead INTO 'word'
-            int count = 0;
-
-            for (Map.Entry<String, Map<String, Integer>> entry : parseResult.getNextWordCounts().entrySet()) {
-                String possiblePrev = entry.getKey();
-                Map<String, Integer> nextMap = entry.getValue();
-
-                if (possiblePrev.equals(prevWord)) {
-                    count += nextMap.getOrDefault(word, 0);
-                }
-            }
-
-            return count;
-        }
-
         public int countFollowing(String word, String nextWord) {
             if (parseResult == null) return 0;
 
@@ -1542,6 +1524,17 @@ public class SentenceBuilderApp extends Application {
             return parseResult.getNextWordCounts()
                 .getOrDefault(word, Map.of())
                 .getOrDefault(nextWord, 0);
+        }
+
+        public int countPreceding(String word, String prevWord) {
+            if (parseResult == null) return 0;
+
+            word = normalizer.normalize(word);
+            prevWord = normalizer.normalize(prevWord);
+
+            return parseResult.getNextWordCounts()
+                .getOrDefault(prevWord, Map.of())
+                .getOrDefault(word, 0);
         }
 
         private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
