@@ -2,6 +2,9 @@ package ui;
 
 import java.util.List;
 import java.util.Map;
+//Code by Archisha Sasson
+import java.util.Random;
+//End of Code by Archisha Sasson
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,7 +13,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 import generator.AutocompleteService;
+//Code by Archisha Sasson
+import generator.WeightedGenerator;
+//End of Code by Archisha Sasson
 import generator.WeightedWord;
+//Code by Archisha Sasson
+import parser.Normalizer;
+//End of Code by Archisha Sasson
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,12 +42,14 @@ class AutocompleteControllerTest {
     @Test
     @DisplayName("Commit on space requests suggestions in service order")
     void commitOnSpaceRequestsSuggestions() throws Exception {
+        //Code by Archisha Sasson
         AutocompleteService service = new AutocompleteService(new FakeGateway(Map.of(
             "hello", List.of(
                 new WeightedWord(1, "world", 3),
                 new WeightedWord(2, "there", 2)
             )
-        )));
+        )), new Normalizer(), new WeightedGenerator(new FixedRandom(0)));
+        //End of Code by Archisha Sasson
         AutocompleteController controller = new AutocompleteController(service);
 
         AutocompleteViewState state = controller.onWordCommitted("hello", ' ', 5);
@@ -115,4 +126,19 @@ class AutocompleteControllerTest {
             // no-op for unit test
         }
     }
+
+    //Code by Archisha Sasson
+    private static final class FixedRandom extends Random {
+        private final int nextValue;
+
+        private FixedRandom(int nextValue) {
+            this.nextValue = nextValue;
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            return nextValue;
+        }
+    }
+    //End of Code by Archisha Sasson
 }

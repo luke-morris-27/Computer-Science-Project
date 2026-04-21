@@ -109,6 +109,12 @@ public class WeightedGenerator {
         return chooseWeighted(startWords);
     }
 
+    //Code by Archisha Sasson
+    public WeightedWord chooseWeightedSuggestion(List<WeightedWord> options) {
+        return chooseWeighted(options);
+    }
+    //End of Code by Archisha Sasson
+
     private WeightedWord chooseWeighted(List<WeightedWord> options) {
         int totalWeight = 0;
         for (WeightedWord option : options) {

@@ -1,11 +1,26 @@
 package ui;
 
+//Code by Archisha Sasson
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+//End of Code by Archisha Sasson
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+
+//Code by Archisha Sasson
+import generator.AutocompleteGateway;
+import generator.AutocompleteService;
+import generator.WeightedGenerator;
+import generator.WeightedWord;
+import parser.Normalizer;
+//End of Code by Archisha Sasson
 
 /*
  * Class: SentenceBuilderAppTest
@@ -44,10 +59,12 @@ class SentenceBuilderAppTest {
     }
 
     @Test
-    @DisplayName("Ghost stays hidden when draft does not end with whitespace")
-    void ghostStaysHiddenWhenDraftDoesNotEndWithWhitespace() {
-        // sammy 4/14: keeps the preview hidden after tab or typing until the user presses space for the next word.
-        assertFalse(SentenceBuilderApp.shouldShowDraftGhostSuggestion("hello", 5, "world"));
+    @DisplayName("Ghost shows when draft does not end with whitespace")
+    void ghostShowsWhenDraftDoesNotEndWithWhitespace() {
+        //Code by Archisha Sasson
+        // The inline ghost hint supplies its own separator, so it can show before the user types a space.
+        assertTrue(SentenceBuilderApp.shouldShowDraftGhostSuggestion("hello", 5, "world"));
+        //End of Code by Archisha Sasson
     }
 
     @Test
@@ -64,11 +81,44 @@ class SentenceBuilderAppTest {
         assertFalse(SentenceBuilderApp.shouldShowDraftGhostSuggestion("hello ", 6, ""));
     }
 
+    //Code by Archisha Sasson
+    @Test
+    @DisplayName("Ghost suggestion uses weighted autocomplete algorithm")
+    void ghostSuggestionUsesWeightedAutocompleteAlgorithm() throws Exception {
+        AutocompleteService service = new AutocompleteService(
+            new FakeAutocompleteGateway(Map.of(
+                "hello",
+                List.of(
+                    new WeightedWord(1, "apple", 1),
+                    new WeightedWord(2, "zebra", 9)
+                )
+            )),
+            new Normalizer(),
+            new WeightedGenerator(new FixedRandom(1))
+        );
+        AutocompleteController controller = new AutocompleteController(service);
+
+        AutocompleteViewState state = controller.onWordCommitted("hello", ' ', 1);
+
+        assertEquals("zebra", SentenceBuilderApp.selectDraftGhostSuggestion(state));
+    }
+
+    @Test
+    @DisplayName("Ghost preview shows only the inline suggestion text")
+    void ghostPreviewShowsOnlyTheInlineSuggestionText() {
+        assertEquals(" little", SentenceBuilderApp.buildDraftGhostSuggestion("I am not a", "little"));
+        assertEquals("little", SentenceBuilderApp.buildDraftGhostSuggestion("I am not a ", "little"));
+    }
+    //End of Code by Archisha Sasson
+
     @Test
     @DisplayName("Tab-style append leaves a trailing space")
     void tabStyleAppendLeavesATrailingSpace() {
         // sammy 4/14: proves the tab flow now creates the real separator space that ghost text waits for.
         assertEquals("hello world ", SentenceBuilderApp.buildDraftAfterAppendingWord("hello", "world", true));
+        //Code by Archisha Sasson
+        assertEquals("I am not a little ", SentenceBuilderApp.buildDraftAfterAppendingWord("I am not a", "little", true));
+        //End of Code by Archisha Sasson
     }
 
     @Test
@@ -78,17 +128,36 @@ class SentenceBuilderAppTest {
         assertEquals("hello world", SentenceBuilderApp.buildDraftAfterAppendingWord("hello", "world", false));
     }
 
-    @Test
-    @DisplayName("Ghost stays on the current line when it still fits")
-    void ghostStaysOnTheCurrentLineWhenItStillFits() {
-        // sammy 4/14: confirms the fit check does not wrap the ghost word early while there is still room beside the caret.
-        assertFalse(SentenceBuilderApp.shouldWrapGhostAfterCaret(90.0, 20.0, 120.0));
+    //Code by Archisha Sasson
+    private static final class FakeAutocompleteGateway implements AutocompleteGateway {
+        private final Map<String, List<WeightedWord>> suggestionsByWord;
+
+        private FakeAutocompleteGateway(Map<String, List<WeightedWord>> suggestionsByWord) {
+            this.suggestionsByWord = suggestionsByWord;
+        }
+
+        @Override
+        public List<WeightedWord> findNextWordSuggestions(String normalizedWord, int limit) throws SQLException {
+            return suggestionsByWord.getOrDefault(normalizedWord, List.of());
+        }
+
+        @Override
+        public void ensureWordExists(String normalizedWord) {
+            // no-op for unit test
+        }
     }
 
-    @Test
-    @DisplayName("Ghost wraps when it would run past the right edge")
-    void ghostWrapsWhenItWouldRunPastTheRightEdge() {
-        // sammy 4/14: confirms the fit check moves the ghost suggestion down before it overlaps the end of the line.
-        assertTrue(SentenceBuilderApp.shouldWrapGhostAfterCaret(100.0, 25.0, 120.0));
+    private static final class FixedRandom extends Random {
+        private final int nextValue;
+
+        private FixedRandom(int nextValue) {
+            this.nextValue = nextValue;
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            return nextValue;
+        }
     }
+    //End of Code by Archisha Sasson
 }

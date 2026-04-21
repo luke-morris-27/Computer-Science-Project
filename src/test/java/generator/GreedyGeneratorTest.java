@@ -58,6 +58,28 @@ public class GreedyGeneratorTest {
         assertEquals(1, repository.savedStartingWordId, "Expected the requested start word ID to be stored");
     }
 
+    //Code by Archisha Sasson
+    @Test
+    @DisplayName("Greedy generator matches autocomplete alphabetical tie-break")
+    void greedyGenerationUsesAutocompleteTieBreakForEqualFrequencyWords() throws SQLException {
+        FakeGeneratorRepository repository = new FakeGeneratorRepository();
+        repository.wordIds.put("hello", 1);
+        repository.nextWords.put(
+            1,
+            List.of(
+                new WeightedWord(3, "zebra", 5),
+                new WeightedWord(2, "apple", 5)
+            )
+        );
+
+        GreedyGenerator generator = new GreedyGenerator(repository, new Normalizer());
+
+        String sentence = generator.generateGreedy("hello", 3);
+
+        assertEquals("hello apple", sentence, "Expected greedy generation to match autocomplete's alphabetical tie-break");
+    }
+    //End of Code by Archisha Sasson
+
     // Code by Shriram
     @Test
     @DisplayName("Greedy generator includes the user's start word even when it is not in the database")

@@ -94,12 +94,20 @@ public class GreedyGenerator {
         return chooseGreedy(repository.getStartWords());
     }
 
+    //Code by Archisha Sasson
     private WeightedWord chooseGreedy(List<WeightedWord> options) {
-        for (WeightedWord option : options) {
-            if (option.weight() > 0) {
-                return option;
-            }
+        if (options == null) {
+            return null;
         }
-        return null;
+
+        return options.stream()
+            .filter(option -> option != null && option.weight() > 0)
+            .sorted(java.util.Comparator
+                .comparingInt(WeightedWord::weight)
+                .reversed()
+                .thenComparing(WeightedWord::wordText))
+            .findFirst()
+            .orElse(null);
     }
+    //End of Code by Archisha Sasson
 }

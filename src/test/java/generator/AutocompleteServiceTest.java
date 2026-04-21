@@ -3,6 +3,9 @@ package generator;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+//Code by Archisha Sasson
+import java.util.Random;
+//End of Code by Archisha Sasson
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +16,8 @@ import org.junit.jupiter.api.TestInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import parser.Normalizer;
 
 /*
  * Class: AutocompleteServiceTest
@@ -51,6 +56,24 @@ class AutocompleteServiceTest {
         assertEquals(5, gateway.lastLimit);
         assertEquals(1, result.size());
     }
+
+    //Code by Archisha Sasson
+    @Test
+    @DisplayName("Suggestions are ordered using weighted generator selection")
+    void suggestionsUseWeightedGeneratorSelection() throws Exception {
+        FakeGateway gateway = new FakeGateway();
+        gateway.suggestions = List.of(
+            new WeightedWord(1, "apple", 1),
+            new WeightedWord(2, "zebra", 9)
+        );
+        WeightedGenerator weightedGenerator = new WeightedGenerator(new FixedRandom(1));
+        AutocompleteService service = new AutocompleteService(gateway, new Normalizer(), weightedGenerator);
+
+        List<WeightedWord> result = service.suggestNextWords("hello", 1);
+
+        assertEquals(List.of("zebra"), result.stream().map(WeightedWord::wordText).toList());
+    }
+    //End of Code by Archisha Sasson
 
     // Code by Shriram
     @Test
@@ -115,4 +138,19 @@ class AutocompleteServiceTest {
             registered.add(normalizedWord);
         }
     }
+
+    //Code by Archisha Sasson
+    private static final class FixedRandom extends Random {
+        private final int nextValue;
+
+        private FixedRandom(int nextValue) {
+            this.nextValue = nextValue;
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            return nextValue;
+        }
+    }
+    //End of Code by Archisha Sasson
 }

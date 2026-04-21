@@ -27,6 +27,9 @@ import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+//Code by Archisha Sasson
+import java.util.LinkedHashMap;
+//End of Code by Archisha Sasson
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -40,7 +43,15 @@ import generator.AutocompleteGateway;
 import generator.AutocompleteService;
 import generator.GenerationAlgorithm;
 import generator.GenerationService;
+//Code by Archisha Sasson
+import generator.GeneratorRepository;
+import generator.GreedyGenerator;
+import generator.RandomGenerator;
+//End of Code by Archisha Sasson
 import generator.WeightedWord;
+//Code by Archisha Sasson
+import generator.WeightedGenerator;
+//End of Code by Archisha Sasson
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -48,9 +59,11 @@ import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+//Code by Archisha Sasson
+import javafx.geometry.Bounds;
+//End of Code by Archisha Sasson
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -66,18 +79,21 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+//Code by Archisha Sasson
 import javafx.scene.control.skin.TextAreaSkin;
+//End of Code by Archisha Sasson
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+//Code by Archisha Sasson
 import javafx.scene.layout.Pane;
+//End of Code by Archisha Sasson
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import parser.Normalizer;
@@ -90,6 +106,10 @@ public class SentenceBuilderApp extends Application {
     // Archisha: use a fixed design canvas that scales to fit the stage so the full UI stays visible.
     private static final double BASE_WINDOW_WIDTH = 1660;
     private static final double BASE_WINDOW_HEIGHT = 920;
+    //Code by Archisha Sasson
+    private static final String DRAFT_TEXT_STYLE = "-fx-font-family: 'Georgia'; -fx-font-size: 16px;";
+    private static final String DRAFT_GHOST_TEXT_STYLE = DRAFT_TEXT_STYLE + "-fx-text-fill: #7a7a7a;";
+    //End of Code by Archisha Sasson
 
     // This preview app does not talk directly to the production database-backed UI flow.
     // Instead, it keeps a lightweight in-memory model so the team can demonstrate the
@@ -104,14 +124,24 @@ public class SentenceBuilderApp extends Application {
     // in-memory adapter backed by DemoUiState instead of the database DAO.
     private final AutocompleteController autocompleteController =
         new AutocompleteController(new AutocompleteService(new InMemoryAutocompleteGateway(demoState)));
-    // Generation also goes through the real controller/service contract. The two executors
-    // are supplied as lambdas so the preview app can simulate weighted and greedy output.
+    //Code by Archisha Sasson
+    private final GeneratorRepository uiGeneratorRepository = new InMemoryGeneratorRepository(demoState);
+    private final WeightedGenerator weightedGenerator =
+        new WeightedGenerator(uiGeneratorRepository, new Random(), normalizer);
+    private final GreedyGenerator greedyGenerator =
+        new GreedyGenerator(uiGeneratorRepository, normalizer);
+    private final RandomGenerator randomGenerator =
+        new RandomGenerator(uiGeneratorRepository, new Random(), normalizer);
+
+    // Generation goes through the real controller/service contract and delegates into the
+    // actual generator classes used by the rest of the project.
     private final GenerateController generateController =
         new GenerateController(new GenerationService(
-            (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.WEIGHTED, startWord, maxWords),
-            (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.GREEDY, startWord, maxWords),
-            (startWord, maxWords) -> demoState.generateSentence(GenerationAlgorithm.RANDOM, startWord, maxWords)
+            weightedGenerator::generateWeighted,
+            greedyGenerator::generateGreedy,
+            randomGenerator::generateRandom
         ));
+    //End of Code by Archisha Sasson
     // Reports are rendered from demoState so the UI can display imported word counts and
     // generated sentence history without depending on persistence.
     private final ReportsController reportsController =
@@ -144,7 +174,9 @@ public class SentenceBuilderApp extends Application {
     private TextField autocompleteCommittedWordField;
     private Spinner<Integer> suggestionLimitSpinner;
     private ListView<String> suggestionsView;
+    //Code by Archisha Sasson
     private Pane draftSuggestionOverlay;
+    //End of Code by Archisha Sasson
 
     private TextField reportSearchField;
     private TextField reportSecondWordField;
@@ -153,6 +185,9 @@ public class SentenceBuilderApp extends Application {
     private Spinner<Integer> reportSentenceLimitSpinner;
     private CheckBox duplicatesOnlyCheckBox;
     private String draftTopSuggestion = "";
+    //Code by Archisha Sasson
+    private String displayedDraftSuggestion = "";
+    //End of Code by Archisha Sasson
     // sammy 4/7: pauses the draft preview refresh for a moment when tab accepts a suggestion so the old hint does not flash back.
     private boolean suppressDraftSuggestionPreview;
 
@@ -295,12 +330,19 @@ public class SentenceBuilderApp extends Application {
         sentenceDraftArea.setMinHeight(340);
         sentenceDraftArea.setMaxHeight(560);
         sentenceDraftArea.setMaxWidth(Double.MAX_VALUE);
+        //Code by Archisha Sasson
+        sentenceDraftArea.setStyle(DRAFT_TEXT_STYLE);
+        //End of Code by Archisha Sasson
         // sammy 4/7: turns the draft suggestion into gray ghost text that can sit inside the draft box near the caret.
+        //Code by Archisha Sasson
         draftSuggestionValue.setManaged(false);
+        //End of Code by Archisha Sasson
         draftSuggestionValue.setMouseTransparent(true);
         draftSuggestionValue.setWrapText(false);
         draftSuggestionValue.setVisible(false);
-        draftSuggestionValue.setStyle("-fx-font-family: 'Georgia'; -fx-font-size: 16px; -fx-text-fill: #7a7a7a;");
+        //Code by Archisha Sasson
+        draftSuggestionValue.setStyle(DRAFT_GHOST_TEXT_STYLE);
+        //End of Code by Archisha Sasson
         // sammy 3/30: refreshes the draft status and the live top suggestion every time the user edits the draft.
         sentenceDraftArea.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshDraftMetadata();
@@ -310,32 +352,42 @@ public class SentenceBuilderApp extends Application {
             }
             refreshDraftSuggestionPreview();
         });
-        // sammy 4/7: keeps the ghost text sitting near the real caret as the user types, clicks, or scrolls in the draft.
-        sentenceDraftArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+        //Code by Archisha Sasson
+        // The ghost suggestion follows the real caret inside the draft box.
+        sentenceDraftArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> updateDraftSuggestionVisibility());
         sentenceDraftArea.scrollTopProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.scrollLeftProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.widthProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.heightProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
+        //End of Code by Archisha Sasson
         sentenceDraftArea.setOnKeyPressed(event -> {
             // sammy 4/14: only lets tab accept the ghost suggestion when the caret is sitting at the end of the draft.
-            if (event.getCode() == KeyCode.TAB && !draftTopSuggestion.isBlank() && isCaretAtDraftEnd()) {
+            //Code by Archisha Sasson
+            if (event.getCode() == KeyCode.TAB
+                && !displayedDraftSuggestion.isBlank()
+                && shouldShowDraftGhostSuggestion()) {
+            //End of Code by Archisha Sasson
                 // sammy 4/14: keeps the tab shortcut matched to the same end-of-draft rule that controls ghost text visibility.
                 event.consume();
                 // sammy 4/14: lets tab accept the word and also add the real separator space that ghost text now waits for.
-                applySuggestionSelection(draftTopSuggestion, true);
+                //Code by Archisha Sasson
+                String suggestionToAccept = displayedDraftSuggestion;
+                draftSuggestionValue.setText(buildDraftGhostSuggestion(sentenceDraftArea.getText(), suggestionToAccept));
+                applySuggestionSelection(suggestionToAccept, true);
+                //End of Code by Archisha Sasson
             }
         });
 
-        // sammy 4/7: this overlay lets the ghost suggestion sit on top of the draft box without blocking typing or clicks.
+        //Code by Archisha Sasson
+        // The overlay is inside the same draft box, so the ghost word appears after the typed text.
         draftSuggestionOverlay = new Pane(draftSuggestionValue);
         draftSuggestionOverlay.setMouseTransparent(true);
         draftSuggestionOverlay.setPickOnBounds(false);
         draftSuggestionOverlay.prefWidthProperty().bind(sentenceDraftArea.widthProperty());
         draftSuggestionOverlay.prefHeightProperty().bind(sentenceDraftArea.heightProperty());
-
-        // sammy 4/7: wraps the real draft area and the overlay together so the ghost text can follow the same editor.
         StackPane draftEditor = new StackPane(sentenceDraftArea, draftSuggestionOverlay);
         StackPane.setAlignment(draftSuggestionOverlay, Pos.TOP_LEFT);
+        //End of Code by Archisha Sasson
 
         Button useLastWordForSuggestionsButton = new Button("Suggest from Last");
         useLastWordForSuggestionsButton.setOnAction(event -> {
@@ -1026,19 +1078,104 @@ public class SentenceBuilderApp extends Application {
         }
 
         // sammy 4/7: saves the current best suggestion, formats it the way it would be inserted, and then repositions it.
-        draftTopSuggestion = state.suggestions().get(0);
+        //Code by Archisha Sasson
+        draftTopSuggestion = selectDraftGhostSuggestion(state);
+        //End of Code by Archisha Sasson
         if (draftTopSuggestion == null || draftTopSuggestion.isBlank()) {
             clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
             return;
         }
 
-        draftSuggestionValue.setText(buildDraftGhostSuggestion(draftTopSuggestion));
-        // sammy 4/14: only turns on the ghost label when the caret is at the end and the user has already typed a real separator space.
-        draftSuggestionValue.setVisible(shouldShowDraftGhostSuggestion());
+        //Code by Archisha Sasson
+        displayedDraftSuggestion = draftTopSuggestion;
+        draftSuggestionValue.setText(buildDraftGhostSuggestion(sentenceDraftArea.getText(), displayedDraftSuggestion));
+        draftHelpValue.setText("Tab adds: " + displayedDraftSuggestion);
+        //End of Code by Archisha Sasson
+        // sammy 4/14: only turns on the ghost label when the caret is at the end of the draft.
+        //Code by Archisha Sasson
+        updateDraftSuggestionVisibility();
+        //End of Code by Archisha Sasson
         draftSuggestionValue.applyCss();
         draftSuggestionValue.autosize();
+    }
+
+    //Code by Archisha Sasson
+    static String selectDraftGhostSuggestion(AutocompleteViewState state) {
+        if (state == null || !state.hasSuggestions() || state.suggestions().isEmpty()) {
+            return "";
+        }
+        String topSuggestion = state.suggestions().get(0);
+        return topSuggestion == null ? "" : topSuggestion;
+    }
+    //End of Code by Archisha Sasson
+
+    //Code by Archisha Sasson
+    private void updateDraftSuggestionVisibility() {
+        if (!shouldShowDraftGhostSuggestion()) {
+            draftSuggestionValue.setVisible(false);
+            return;
+        }
+
+        draftSuggestionValue.setText(buildDraftGhostSuggestion(sentenceDraftArea.getText(), displayedDraftSuggestion));
         queueDraftSuggestionPosition();
     }
+    //End of Code by Archisha Sasson
+
+    //Code by Archisha Sasson
+    private void queueDraftSuggestionPosition() {
+        Platform.runLater(this::positionDraftSuggestionNearCaret);
+    }
+
+    private void positionDraftSuggestionNearCaret() {
+        if (!shouldShowDraftGhostSuggestion() || draftSuggestionOverlay == null) {
+            draftSuggestionValue.setVisible(false);
+            return;
+        }
+
+        Bounds caretBounds = getDraftCaretBoundsInOverlay();
+        if (caretBounds == null) {
+            draftSuggestionValue.setVisible(false);
+            return;
+        }
+
+        draftSuggestionValue.setText(buildDraftGhostSuggestion(sentenceDraftArea.getText(), displayedDraftSuggestion));
+        draftSuggestionValue.applyCss();
+        draftSuggestionValue.autosize();
+
+        double ghostWidth = draftSuggestionValue.prefWidth(-1);
+        double ghostHeight = draftSuggestionValue.prefHeight(-1);
+        double contentRight = Math.max(0, draftSuggestionOverlay.getWidth() - 10);
+        double contentBottom = Math.max(0, draftSuggestionOverlay.getHeight() - 10);
+        double ghostX = Math.max(0, caretBounds.getMaxX());
+        double ghostY = Math.max(0, caretBounds.getMinY());
+
+        if (ghostX + ghostWidth > contentRight && contentRight > 0) {
+            ghostX = 10;
+            ghostY = Math.max(0, caretBounds.getMinY() + caretBounds.getHeight());
+        }
+        if (ghostY + ghostHeight > contentBottom && contentBottom > 0) {
+            ghostY = Math.max(0, contentBottom - ghostHeight);
+        }
+
+        draftSuggestionValue.relocate(ghostX, ghostY);
+        draftSuggestionValue.setVisible(true);
+        draftSuggestionValue.toFront();
+    }
+
+    private Bounds getDraftCaretBoundsInOverlay() {
+        if (sentenceDraftArea.getScene() == null
+            || draftSuggestionOverlay == null
+            || !(sentenceDraftArea.getSkin() instanceof TextAreaSkin textAreaSkin)) {
+            return null;
+        }
+
+        Bounds caretBounds = textAreaSkin.getCaretBounds();
+        if (caretBounds == null) {
+            return null;
+        }
+        return draftSuggestionOverlay.sceneToLocal(sentenceDraftArea.localToScene(caretBounds));
+    }
+    //End of Code by Archisha Sasson
 
     // sammy 3/30: avoids noisy log spam while still surfacing important autocomplete outcomes to the activity log.
     private boolean shouldLogAutocompleteState(AutocompleteViewState state, boolean userInitiated) {
@@ -1059,17 +1196,15 @@ public class SentenceBuilderApp extends Application {
     // sammy 3/30: clears the saved tab suggestion and replaces it with a plain-language hint for the draft pane.
     private void clearDraftSuggestionPreview(String message) {
         draftTopSuggestion = "";
+        //Code by Archisha Sasson
+        displayedDraftSuggestion = "";
+        //End of Code by Archisha Sasson
         draftSuggestionValue.setText("");
         draftSuggestionValue.setVisible(false);
 
         if (message != null && !message.isBlank()) {
             draftHelpValue.setText(message);
         }
-    }
-
-    // sammy 4/7: waits until JavaFX finishes laying out the draft box before placing the ghost text again.
-    private void queueDraftSuggestionPosition() {
-        Platform.runLater(this::positionDraftSuggestionNearCaret);
     }
 
     // sammy 4/14: reloads suggestions after tab acceptance only after JavaFX finishes updating the caret for the new trailing space.
@@ -1108,10 +1243,12 @@ public class SentenceBuilderApp extends Application {
         return safeCaretPosition == safeDraftText.length();
     }
 
-    // sammy 4/14: keeps ghost text hidden until the user is at the end and has typed a real trailing space for the next word to follow.
+    // sammy 4/14: keeps ghost text hidden unless the user is at the end of the draft.
     private boolean shouldShowDraftGhostSuggestion() {
         // sammy 4/14: reuses one helper so visibility stays matched between refresh-time and live caret movement.
-        return shouldShowDraftGhostSuggestion(sentenceDraftArea.getText(), sentenceDraftArea.getCaretPosition(), draftTopSuggestion);
+        //Code by Archisha Sasson
+        return shouldShowDraftGhostSuggestion(sentenceDraftArea.getText(), sentenceDraftArea.getCaretPosition(), displayedDraftSuggestion);
+        //End of Code by Archisha Sasson
     }
 
     // sammy 4/14: gives the ghost-visibility rule a simple testable helper without needing the full JavaFX app to run.
@@ -1124,156 +1261,26 @@ public class SentenceBuilderApp extends Application {
         if (!isCaretAtDraftEnd(draftText, caretPosition)) {
             return false;
         }
-        // sammy 4/14: only allows the ghost text after the user has typed actual whitespace at the end of the draft.
-        return draftEndsWithWhitespace(draftText);
+        //Code by Archisha Sasson
+        // The inline overlay can add its own visual separator, so the draft does not need trailing whitespace.
+        return true;
+        //End of Code by Archisha Sasson
     }
 
     // sammy 4/7: formats the inline suggestion the same way tab accept would add it into the draft.
-    private String buildDraftGhostSuggestion(String suggestion) {
+    static String buildDraftGhostSuggestion(String currentDraft, String suggestion) {
         if (suggestion == null || suggestion.isBlank()) {
             return "";
         }
-        // sammy 4/7: keeps just the word here because the visual space is handled in the overlay positioning math.
-        return suggestion;
-    }
-
-    // sammy 4/7: measures the draft text itself so the ghost word can move with the typed line instead of staying in one fixed spot.
-    private void positionDraftSuggestionNearCaret() {
-        // sammy 4/14: hides the ghost text immediately unless the user is at the end and has already typed the separator space.
-        if (!shouldShowDraftGhostSuggestion()) {
-            draftSuggestionValue.setVisible(false);
-            return;
+        //Code by Archisha Sasson
+        // Show only the inline ghost word that Tab will add, not the whole draft sentence.
+        String safeDraft = currentDraft == null ? "" : currentDraft;
+        String safeSuggestion = suggestion.trim();
+        if (safeDraft.isBlank() || Character.isWhitespace(safeDraft.charAt(safeDraft.length() - 1))) {
+            return safeSuggestion;
         }
-
-        // sammy 4/14: brings the ghost text back when there is still a saved suggestion and the draft is in the right state to preview it.
-        if (!draftTopSuggestion.isBlank()) {
-            draftSuggestionValue.setVisible(true);
-        }
-
-        if (!draftSuggestionValue.isVisible() || sentenceDraftArea.getScene() == null || draftSuggestionOverlay == null) {
-            return;
-        }
-
-        draftSuggestionValue.applyCss();
-        draftSuggestionValue.autosize();
-
-        // sammy 4/7: uses the real content area when possible so wrapping and scrolling line up better with the draft text.
-        double contentLeft = 12;
-        double contentTop = 10;
-        double contentWidth = Math.max(80, sentenceDraftArea.getWidth() - 24);
-        Node contentNode = sentenceDraftArea.lookup(".content");
-        if (contentNode != null) {
-            var contentBounds = draftSuggestionOverlay.sceneToLocal(contentNode.localToScene(contentNode.getBoundsInLocal()));
-            contentLeft = contentBounds.getMinX() + 6;
-            // sammy 4/7: keeps the content anchor a little above default without lifting the ghost suggestion too much.
-            contentTop = contentBounds.getMinY() + 5;
-            contentWidth = Math.max(80, contentBounds.getWidth() - 12);
-        }
-
-        // sammy 4/14: anchors from the rendered trailing-space character first because it stays more stable than the live caret after repeated tab inserts.
-        var insertionBounds = getDraftInsertionBoundsInOverlay();
-        // sammy 4/14: falls back to the live caret only if the rendered end-of-text bounds are not available yet during layout.
-        if (insertionBounds == null) {
-            insertionBounds = getDraftCaretBoundsInOverlay();
-        }
-        // sammy 4/14: waits for JavaFX to expose at least one usable end-of-text anchor before placing the ghost suggestion.
-        if (insertionBounds == null) {
-            return;
-        }
-
-        // sammy 4/14: measures the plain ghost word because the separator space now has to be real typed whitespace before the preview can appear.
-        double inlineGhostWidth = measureDraftTextWidth(draftSuggestionValue.getText());
-        // sammy 4/14: starts the ghost word exactly at the rendered end of the trailing space instead of trusting the live caret path alone.
-        double x = insertionBounds.getMaxX();
-        // sammy 4/14: anchors the ghost label to the same rendered row as the draft end so later tabs stay lined up with the text.
-        double y = insertionBounds.getMinY() - 1;
-        // sammy 4/14: tracks the last safe right edge inside the draft content area before the ghost text would overlap the border.
-        double contentRight = contentLeft + contentWidth - 8;
-        // sammy 4/14: moves the ghost word to the next line only when there is not enough visible room after the caret.
-        boolean wrappedGhost = shouldWrapGhostAfterCaret(x, inlineGhostWidth, contentRight);
-        if (wrappedGhost) {
-            // sammy 4/14: starts a wrapped ghost word at the normal left text edge of the next visual line.
-            x = contentLeft + 3;
-            // sammy 4/14: steps down using the rendered end-of-text height so wrapped ghost text stays aligned on later lines too.
-            y = insertionBounds.getMinY() + insertionBounds.getHeight() - 1;
-        }
-
-        double maxX = Math.max(contentLeft, contentLeft + contentWidth - draftSuggestionValue.prefWidth(-1) - 8);
-        double minY = Math.max(0, contentTop - 2);
-        double maxY = Math.max(minY, sentenceDraftArea.getHeight() - draftSuggestionValue.getHeight() - 10);
-
-        draftSuggestionValue.relocate(Math.min(x, maxX), Math.min(Math.max(minY, y), maxY));
-        draftSuggestionValue.toFront();
-    }
-
-    // sammy 4/7: reuses the draft font to measure how wide a typed line is before placing the ghost suggestion after it.
-    private double measureDraftTextWidth(String text) {
-        Text helper = new Text(text == null ? "" : text);
-        helper.setFont(sentenceDraftArea.getFont());
-        return helper.getLayoutBounds().getWidth();
-    }
-
-    // sammy 4/14: converts the text area's real caret rectangle into the overlay pane that draws the ghost suggestion.
-    private javafx.geometry.Bounds getDraftCaretBoundsInOverlay() {
-        // sammy 4/14: uses the standard JavaFX text-area skin because it exposes the real caret bounds for the current wrapped line.
-        if (!(sentenceDraftArea.getSkin() instanceof TextAreaSkin textAreaSkin)) {
-            return null;
-        }
-        // sammy 4/14: asks JavaFX for the actual caret rectangle instead of estimating where the caret should be.
-        var caretBounds = textAreaSkin.getCaretBounds();
-        // sammy 4/14: stays safe during startup and relayout moments when the caret rectangle is not ready yet.
-        if (caretBounds == null) {
-            return null;
-        }
-        // sammy 4/14: maps the caret rectangle into the overlay coordinate system so the ghost label can sit exactly beside it.
-        return draftSuggestionOverlay.sceneToLocal(sentenceDraftArea.localToScene(caretBounds));
-    }
-
-    // sammy 4/14: maps the rendered final character in the draft into overlay space so ghost text can start from the visible end of the text.
-    private javafx.geometry.Bounds getDraftInsertionBoundsInOverlay() {
-        // sammy 4/14: only uses this path when the standard JavaFX skin is available to report real character bounds.
-        if (!(sentenceDraftArea.getSkin() instanceof TextAreaSkin textAreaSkin)) {
-            return null;
-        }
-        // sammy 4/14: reads the current draft once so the helper can safely inspect the rendered final character.
-        String draftText = sentenceDraftArea.getText();
-        // sammy 4/14: keeps the helper safe when there is no text or no trailing whitespace character to anchor from yet.
-        if (draftText == null || draftText.isEmpty() || !draftEndsWithWhitespace(draftText)) {
-            return null;
-        }
-        // sammy 4/14: asks JavaFX for the bounds of the actual trailing-space character instead of the sometimes-lagging caret path.
-        var characterBounds = textAreaSkin.getCharacterBounds(draftText.length() - 1);
-        // sammy 4/14: stays safe during startup or relayout moments when JavaFX has not resolved the character bounds yet.
-        if (characterBounds == null) {
-            return null;
-        }
-        // sammy 4/14: converts the character rectangle corners into the overlay coordinate system used by the ghost label.
-        var topLeft = draftSuggestionOverlay.sceneToLocal(
-            sentenceDraftArea.localToScene(characterBounds.getMinX(), characterBounds.getMinY())
-        );
-        // sammy 4/14: maps the bottom-right corner too so the ghost text can use the visible end of the rendered trailing space.
-        var bottomRight = draftSuggestionOverlay.sceneToLocal(
-            sentenceDraftArea.localToScene(characterBounds.getMaxX(), characterBounds.getMaxY())
-        );
-        // sammy 4/14: rebuilds the final rectangle in overlay space so the caller can place ghost text from the rendered text end.
-        return new javafx.geometry.BoundingBox(
-            topLeft.getX(),
-            topLeft.getY(),
-            Math.max(0, bottomRight.getX() - topLeft.getX()),
-            Math.max(0, bottomRight.getY() - topLeft.getY())
-        );
-    }
-
-    // sammy 4/14: checks whether the draft already ends with real whitespace that the caret has moved past.
-    static boolean draftEndsWithWhitespace(String draftText) {
-        // sammy 4/14: keeps the helper safe for null and empty drafts before reading the last character.
-        return draftText != null && !draftText.isEmpty() && Character.isWhitespace(draftText.charAt(draftText.length() - 1));
-    }
-
-    // sammy 4/14: decides whether the ghost word still fits on the current visual line once it starts beside the caret.
-    static boolean shouldWrapGhostAfterCaret(double ghostStartX, double ghostSuggestionWidth, double contentRight) {
-        // sammy 4/14: compares the ghost label's right edge against the content area's right edge in one simple fit check.
-        return ghostStartX + ghostSuggestionWidth > contentRight;
+        return " " + safeSuggestion;
+        //End of Code by Archisha Sasson
     }
 
     private void refreshReports() {
@@ -1459,60 +1466,61 @@ public class SentenceBuilderApp extends Application {
         }
     }
 
+    //Code by Archisha Sasson
+    private static final class InMemoryGeneratorRepository implements GeneratorRepository {
+        private final DemoUiState state;
+
+        private InMemoryGeneratorRepository(DemoUiState state) {
+            this.state = state;
+        }
+
+        @Override
+        public Integer getWordId(String wordText) {
+            return state.getWordId(wordText);
+        }
+
+        @Override
+        public List<WeightedWord> getNextWords(int wordId) {
+            return state.getNextWords(wordId);
+        }
+
+        @Override
+        public List<WeightedWord> getStartWords() {
+            return state.getStartWords();
+        }
+
+        @Override
+        public void saveGeneratedSentence(String sentenceText, String algorithmName, Integer startingWordId) {
+            state.saveGeneratedSentence(sentenceText);
+        }
+    }
+    //End of Code by Archisha Sasson
+
     private static final class DemoUiState {
         // DemoUiState is the preview application's in-memory "model layer."
         // It stores the imported parse result, generated sentence history, and user-registered
         // autocomplete words so the UI can behave like a real app during demonstrations.
         private final Normalizer normalizer = new Normalizer();
-        private final Random random = new Random();
         private ParseResult parseResult;
         private final List<String> generatedSentences = new ArrayList<>();
         private final Set<String> registeredWords = new LinkedHashSet<>();
+        //Code by Archisha Sasson
+        private final Map<String, Integer> wordIds = new LinkedHashMap<>();
+        private final Map<Integer, String> wordsById = new LinkedHashMap<>();
+        private int nextWordId = 1;
+        //End of Code by Archisha Sasson
 
         private void load(ParseResult result, Path sourcePath) {
             // Loading a new file replaces the current preview state instead of merging it.
             this.parseResult = result;
             this.generatedSentences.clear();
             this.registeredWords.clear();
-        }
-
-        private String generateSentence(GenerationAlgorithm algorithm, String startWord, int maxWords) throws SQLException {
-            // Generation runs entirely against the imported parse result maps, not the database.
-            if (parseResult == null) {
-                throw new SQLException("Import a file before generating sentences.");
-            }
-
-            String currentWord = resolveStartWord(algorithm, startWord);
-            if (currentWord == null || currentWord.isBlank()) {
-                throw new SQLException("No words are available for generation.");
-            }
-
-            List<String> generated = new ArrayList<>();
-            generated.add(currentWord);
-
-            while (generated.size() < maxWords) {
-                // Each step looks up the current word's possible transitions from ParseResult.
-                Map<String, Integer> nextWords = parseResult.getNextWordCounts().getOrDefault(currentWord, Map.of());
-                if (nextWords.isEmpty()) {
-                    break;
-                }
-
-                currentWord = switch (algorithm) {
-                    case GREEDY -> chooseGreedy(nextWords);
-                    case WEIGHTED -> chooseWeighted(nextWords);
-                    case RANDOM -> chooseRandom(nextWords);
-                };
-
-                if (currentWord == null || currentWord.isBlank()) {
-                    break;
-                }
-                generated.add(currentWord);
-            }
-
-            String sentence = String.join(" ", generated);
-            // Generated sentences are saved in-memory so the reports tab can display history.
-            generatedSentences.add(sentence);
-            return sentence;
+            //Code by Archisha Sasson
+            this.wordIds.clear();
+            this.wordsById.clear();
+            this.nextWordId = 1;
+            result.getWordCounts().keySet().forEach(this::getOrCreateWordId);
+            //End of Code by Archisha Sasson
         }
 
         public int countFollowing(String word, String nextWord) {
@@ -1537,74 +1545,62 @@ public class SentenceBuilderApp extends Application {
                 .getOrDefault(word, 0);
         }
 
-        private String resolveStartWord(GenerationAlgorithm algorithm, String startWord) {
-            // Prefer an explicit valid start word; otherwise fall back to sentence starts or,
-            // failing that, the most common word in the imported result.
-            String normalizedStart = normalizer.normalize(startWord);
-            if (!normalizedStart.isBlank() && parseResult.getWordCounts().containsKey(normalizedStart)) {
-                return normalizedStart;
-            }
-
-            Map<String, Integer> sentenceStarts = parseResult.getSentenceStartCounts();
-            if (!sentenceStarts.isEmpty()) {
-                return switch (algorithm) {
-                    case GREEDY -> chooseGreedy(sentenceStarts);
-                    case WEIGHTED -> chooseWeighted(sentenceStarts);
-                    case RANDOM -> chooseRandom(sentenceStarts);
-                };
-            }
-
-            return chooseGreedy(parseResult.getWordCounts());
-        }
-
-        private String chooseGreedy(Map<String, Integer> options) {
-            // Greedy mode is deterministic: highest count wins, then alphabetical tie-break.
-            return options.entrySet().stream()
-                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
-                    .thenComparing(Map.Entry::getKey))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
-        }
-
-        private String chooseWeighted(Map<String, Integer> options) {
-            // Weighted mode simulates probabilistic next-word selection using frequencies.
-            int totalWeight = options.values().stream()
-                .filter(weight -> weight != null && weight > 0)
-                .mapToInt(Integer::intValue)
-                .sum();
-
-            if (totalWeight <= 0) {
-                return chooseGreedy(options);
-            }
-
-            int roll = random.nextInt(totalWeight);
-            int runningTotal = 0;
-            for (Map.Entry<String, Integer> entry : options.entrySet()) {
-                int weight = entry.getValue();
-                if (weight <= 0) {
-                    continue;
-                }
-                runningTotal += weight;
-                if (roll < runningTotal) {
-                    return entry.getKey();
-                }
-            }
-            return chooseGreedy(options);
-        }
-
-        private String chooseRandom(Map<String, Integer> options) {
-            List<String> validOptions = options.entrySet().stream()
-                .filter(entry -> entry.getValue() != null && entry.getValue() > 0)
-                .map(Map.Entry::getKey)
-                .toList();
-
-            if (validOptions.isEmpty()) {
+        //Code by Archisha Sasson
+        private Integer getWordId(String wordText) {
+            String normalizedWord = normalizer.normalize(wordText);
+            if (normalizedWord.isBlank()) {
                 return null;
             }
-
-            return validOptions.get(random.nextInt(validOptions.size()));
+            if (registeredWords.contains(normalizedWord)
+                || parseResult != null && parseResult.getWordCounts().containsKey(normalizedWord)) {
+                return getOrCreateWordId(normalizedWord);
+            }
+            return null;
         }
+
+        private List<WeightedWord> getNextWords(int wordId) {
+            if (parseResult == null) {
+                return List.of();
+            }
+
+            String currentWord = wordsById.get(wordId);
+            if (currentWord == null) {
+                return List.of();
+            }
+
+            return parseResult.getNextWordCounts().getOrDefault(currentWord, Map.of()).entrySet().stream()
+                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
+                    .thenComparing(Map.Entry::getKey))
+                .map(entry -> new WeightedWord(getOrCreateWordId(entry.getKey()), entry.getKey(), entry.getValue()))
+                .toList();
+        }
+
+        private List<WeightedWord> getStartWords() {
+            if (parseResult == null) {
+                return List.of();
+            }
+
+            return parseResult.getSentenceStartCounts().entrySet().stream()
+                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
+                    .thenComparing(Map.Entry::getKey))
+                .map(entry -> new WeightedWord(getOrCreateWordId(entry.getKey()), entry.getKey(), entry.getValue()))
+                .toList();
+        }
+
+        private void saveGeneratedSentence(String sentenceText) {
+            if (sentenceText != null && !sentenceText.isBlank()) {
+                generatedSentences.add(sentenceText);
+            }
+        }
+
+        private int getOrCreateWordId(String wordText) {
+            return wordIds.computeIfAbsent(wordText, word -> {
+                int wordId = nextWordId++;
+                wordsById.put(wordId, word);
+                return wordId;
+            });
+        }
+        //End of Code by Archisha Sasson
 
         private List<WeightedWord> findSuggestions(String normalizedWord, int limit) {
             // Suggestions come from the same next-word counts used for generation, but they are
@@ -1618,7 +1614,9 @@ public class SentenceBuilderApp extends Application {
                 .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
                     .thenComparing(Map.Entry::getKey))
                 .limit(limit)
-                .map(entry -> new WeightedWord(entry.getKey().hashCode(), entry.getKey(), entry.getValue()))
+                //Code by Archisha Sasson
+                .map(entry -> new WeightedWord(getOrCreateWordId(entry.getKey()), entry.getKey(), entry.getValue()))
+                //End of Code by Archisha Sasson
                 .toList();
         }
 
@@ -1627,6 +1625,9 @@ public class SentenceBuilderApp extends Application {
             // imported file did not contain them.
             if (!normalizedWord.isBlank()) {
                 registeredWords.add(normalizedWord);
+                //Code by Archisha Sasson
+                getOrCreateWordId(normalizedWord);
+                //End of Code by Archisha Sasson
             }
         }
 

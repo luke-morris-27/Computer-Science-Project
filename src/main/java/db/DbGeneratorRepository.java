@@ -45,7 +45,9 @@ public class DbGeneratorRepository implements GeneratorRepository {
                      "FROM next_word nw " +
                      "JOIN words w ON w.word_id = nw.to_word_id " +
                      "WHERE nw.from_word_id = ? " +
-                     "ORDER BY nw.transition_count DESC, w.word_id ASC"
+                     //Code by Archisha Sasson
+                     "ORDER BY nw.transition_count DESC, w.word_text ASC"
+                     //End of Code by Archisha Sasson
              )) {
             ps.setInt(1, wordId);
             try (ResultSet rs = ps.executeQuery()) {
