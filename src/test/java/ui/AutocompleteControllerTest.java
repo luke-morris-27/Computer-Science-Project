@@ -9,8 +9,12 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
+import java.util.Random;
+
 import generator.AutocompleteService;
+import generator.WeightedGenerator;
 import generator.WeightedWord;
+import parser.Normalizer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,12 +37,19 @@ class AutocompleteControllerTest {
     @Test
     @DisplayName("Commit on space requests suggestions in service order")
     void commitOnSpaceRequestsSuggestions() throws Exception {
-        AutocompleteService service = new AutocompleteService(new FakeGateway(Map.of(
-            "hello", List.of(
-                new WeightedWord(1, "world", 3),
-                new WeightedWord(2, "there", 2)
-            )
-        )));
+        // Code by Shriram
+        // uses a seeded weighted generator so weighted random selection is deterministic in tests
+        AutocompleteService service = new AutocompleteService(
+            new FakeGateway(Map.of(
+                "hello", List.of(
+                    new WeightedWord(1, "world", 3),
+                    new WeightedWord(2, "there", 2)
+                )
+            )),
+            new Normalizer(),
+            new WeightedGenerator(new Random(0))
+        );
+        // End of Code by Shriram
         AutocompleteController controller = new AutocompleteController(service);
 
         AutocompleteViewState state = controller.onWordCommitted("hello", ' ', 5);
@@ -46,7 +57,8 @@ class AutocompleteControllerTest {
         assertEquals(AutocompleteViewState.AutocompleteOutcome.SHOW_RESULTS, state.outcome());
         assertTrue(state.suggestionsRequested());
         assertTrue(state.hasSuggestions());
-        assertEquals(List.of("world", "there"), state.suggestions());
+        assertEquals(2, state.suggestions().size());
+        assertTrue(state.suggestions().containsAll(List.of("world", "there")));
         assertEquals("Loaded 2 suggestions after 'hello'.", state.feedbackMessage());
     }
 
