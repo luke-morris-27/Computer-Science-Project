@@ -27,6 +27,15 @@ public class AutocompleteService {
     // Code by Shriram
     // uses the weighted algorithm class to pick autocomplete suggestions
     private final WeightedGenerator weightedGenerator;
+
+    // remembers the most recent suggestion word so we can return the same result for repeated lookups
+    private String cachedWord;
+
+    // remembers the most recent limit alongside the cached word
+    private int cachedLimit;
+
+    // remembers the most recent suggestion list so the ghost text and the suggestion list cannot disagree
+    private List<WeightedWord> cachedSuggestions;
     // End of Code by Shriram
 
     // builds the service with a default normalizer
@@ -66,12 +75,24 @@ public class AutocompleteService {
         }
 
         // Code by Shriram
+        // returns the cached result so the ghost text and suggestion list always agree when the same word is queried
+        if (normalized.equals(cachedWord) && limit == cachedLimit && cachedSuggestions != null) {
+            return cachedSuggestions;
+        }
+
         // pulls a wider candidate pool so weighted selection has meaningful options to choose from
         int poolSize = limit * CANDIDATE_POOL_MULTIPLIER;
         List<WeightedWord> candidates = gateway.findNextWordSuggestions(normalized, poolSize);
 
         // delegates to the weighted algorithm class so suggestions reflect frequency-weighted probability
-        return weightedGenerator.pickWeightedSuggestions(candidates, limit);
+        List<WeightedWord> suggestions = weightedGenerator.pickWeightedSuggestions(candidates, limit);
+
+        // caches the freshly computed result so repeated lookups for the same word stay consistent
+        cachedWord = normalized;
+        cachedLimit = limit;
+        cachedSuggestions = suggestions;
+
+        return suggestions;
         // End of Code by Shriram
     }
 
