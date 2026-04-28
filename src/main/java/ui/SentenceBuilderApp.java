@@ -60,10 +60,14 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 //Code by Archisha Sasson
+import javafx.geometry.BoundingBox;
 import javafx.geometry.Bounds;
 //End of Code by Archisha Sasson
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+//Code by Archisha Sasson
+import javafx.geometry.Rectangle2D;
+//End of Code by Archisha Sasson
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -83,6 +87,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.skin.TextAreaSkin;
 //End of Code by Archisha Sasson
 import javafx.scene.input.KeyCode;
+//Code by Archisha Sasson
+import javafx.scene.input.KeyEvent;
+//End of Code by Archisha Sasson
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -107,6 +114,8 @@ public class SentenceBuilderApp extends Application {
     private static final double BASE_WINDOW_WIDTH = 1660;
     private static final double BASE_WINDOW_HEIGHT = 920;
     //Code by Archisha Sasson
+    private static final double DRAFT_GHOST_MARGIN = 10;
+    private static final double DRAFT_GHOST_CARET_GAP = 2;
     private static final String DRAFT_TEXT_STYLE = "-fx-font-family: 'Georgia'; -fx-font-size: 16px;";
     private static final String DRAFT_GHOST_TEXT_STYLE = DRAFT_TEXT_STYLE + "-fx-text-fill: #7a7a7a;";
     //End of Code by Archisha Sasson
@@ -360,22 +369,25 @@ public class SentenceBuilderApp extends Application {
         sentenceDraftArea.widthProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         sentenceDraftArea.heightProperty().addListener((obs, oldValue, newValue) -> queueDraftSuggestionPosition());
         //End of Code by Archisha Sasson
-        sentenceDraftArea.setOnKeyPressed(event -> {
-            // sammy 4/14: only lets tab accept the ghost suggestion when the caret is sitting at the end of the draft.
+        sentenceDraftArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             //Code by Archisha Sasson
-            if (event.getCode() == KeyCode.TAB
-                && !displayedDraftSuggestion.isBlank()
-                && shouldShowDraftGhostSuggestion()) {
-            //End of Code by Archisha Sasson
-                // sammy 4/14: keeps the tab shortcut matched to the same end-of-draft rule that controls ghost text visibility.
-                event.consume();
-                // sammy 4/14: lets tab accept the word and also add the real separator space that ghost text now waits for.
-                //Code by Archisha Sasson
-                String suggestionToAccept = displayedDraftSuggestion;
-                draftSuggestionValue.setText(buildDraftGhostSuggestion(sentenceDraftArea.getText(), suggestionToAccept));
-                applySuggestionSelection(suggestionToAccept, true);
-                //End of Code by Archisha Sasson
+            if (event.getCode() != KeyCode.TAB) {
+                return;
             }
+
+            event.consume();
+
+            if (displayedDraftSuggestion == null || displayedDraftSuggestion.isBlank()) {
+                return;
+            }
+
+            if (!isCaretAtDraftEnd()) {
+                return;
+            }
+
+            String suggestionToAccept = displayedDraftSuggestion;
+            applySuggestionSelection(suggestionToAccept, true);
+            //End of Code by Archisha Sasson
         });
 
         //Code by Archisha Sasson
@@ -1117,6 +1129,10 @@ public class SentenceBuilderApp extends Application {
         }
 
         draftSuggestionValue.setText(buildDraftGhostSuggestion(sentenceDraftArea.getText(), displayedDraftSuggestion));
+        draftSuggestionValue.applyCss();
+        draftSuggestionValue.autosize();
+        draftSuggestionValue.setVisible(true);
+        draftSuggestionValue.toFront();
         queueDraftSuggestionPosition();
     }
     //End of Code by Archisha Sasson
@@ -1144,23 +1160,54 @@ public class SentenceBuilderApp extends Application {
 
         double ghostWidth = draftSuggestionValue.prefWidth(-1);
         double ghostHeight = draftSuggestionValue.prefHeight(-1);
-        double contentRight = Math.max(0, draftSuggestionOverlay.getWidth() - 10);
-        double contentBottom = Math.max(0, draftSuggestionOverlay.getHeight() - 10);
-        double ghostX = Math.max(0, caretBounds.getMaxX());
-        double ghostY = Math.max(0, caretBounds.getMinY());
-
-        if (ghostX + ghostWidth > contentRight && contentRight > 0) {
-            ghostX = 10;
-            ghostY = Math.max(0, caretBounds.getMinY() + caretBounds.getHeight());
+        //Code by Archisha Sasson
+        DraftGhostPlacement placement = calculateDraftGhostPlacement(
+            caretBounds.getMaxX(),
+            caretBounds.getMinY(),
+            caretBounds.getHeight(),
+            ghostWidth,
+            ghostHeight,
+            draftSuggestionOverlay.getWidth(),
+            draftSuggestionOverlay.getHeight()
+        );
+        //End of Code by Archisha Sasson
+        if (placement == null) {
+            draftSuggestionValue.setVisible(false);
+            return;
         }
-        if (ghostY + ghostHeight > contentBottom && contentBottom > 0) {
-            ghostY = Math.max(0, contentBottom - ghostHeight);
-        }
 
-        draftSuggestionValue.relocate(ghostX, ghostY);
+        draftSuggestionValue.relocate(placement.x(), placement.y());
         draftSuggestionValue.setVisible(true);
         draftSuggestionValue.toFront();
     }
+
+    //Code by Archisha Sasson
+    static DraftGhostPlacement calculateDraftGhostPlacement(
+        double caretMaxX,
+        double caretMinY,
+        double caretHeight,
+        double ghostWidth,
+        double ghostHeight,
+        double overlayWidth,
+        double overlayHeight
+    ) {
+        double contentRight = Math.max(0, overlayWidth - DRAFT_GHOST_MARGIN);
+        double contentBottom = Math.max(0, overlayHeight - DRAFT_GHOST_MARGIN);
+        double sameLineX = Math.max(DRAFT_GHOST_MARGIN, caretMaxX + DRAFT_GHOST_CARET_GAP);
+        double sameLineY = Math.max(0, caretMinY);
+
+        if (contentRight <= 0 || contentBottom <= 0) {
+            return null;
+        }
+        if (sameLineX + ghostWidth <= contentRight && sameLineY + ghostHeight <= contentBottom) {
+            return new DraftGhostPlacement(sameLineX, sameLineY);
+        }
+
+        return null;
+    }
+
+    record DraftGhostPlacement(double x, double y) {}
+    //End of Code by Archisha Sasson
 
     private Bounds getDraftCaretBoundsInOverlay() {
         if (sentenceDraftArea.getScene() == null
@@ -1169,11 +1216,25 @@ public class SentenceBuilderApp extends Application {
             return null;
         }
 
-        Bounds caretBounds = textAreaSkin.getCaretBounds();
-        if (caretBounds == null) {
+        //Code by Archisha Sasson
+        int caretPosition = sentenceDraftArea.getCaretPosition();
+        if (caretPosition <= 0) {
             return null;
         }
-        return draftSuggestionOverlay.sceneToLocal(sentenceDraftArea.localToScene(caretBounds));
+
+        Rectangle2D characterBounds = textAreaSkin.getCharacterBounds(caretPosition - 1);
+        if (characterBounds == null) {
+            return null;
+        }
+
+        Bounds charBounds = sentenceDraftArea.localToScene(new BoundingBox(
+            characterBounds.getMinX(),
+            characterBounds.getMinY(),
+            characterBounds.getWidth(),
+            characterBounds.getHeight()
+        ));
+        return draftSuggestionOverlay.sceneToLocal(charBounds);
+        //End of Code by Archisha Sasson
     }
     //End of Code by Archisha Sasson
 
@@ -1262,10 +1323,26 @@ public class SentenceBuilderApp extends Application {
             return false;
         }
         //Code by Archisha Sasson
-        // The inline overlay can add its own visual separator, so the draft does not need trailing whitespace.
-        return true;
+        return isAtLastWordBoundary(draftText, caretPosition);
         //End of Code by Archisha Sasson
     }
+
+    //Code by Archisha Sasson
+    static boolean isAtLastWordBoundary(String draftText, int caretPosition) {
+        String safeDraftText = draftText == null ? "" : draftText;
+        if (safeDraftText.isBlank() || caretPosition != safeDraftText.length()) {
+            return false;
+        }
+
+        char lastChar = safeDraftText.charAt(safeDraftText.length() - 1);
+        if (!Character.isWhitespace(lastChar)) {
+            return true;
+        }
+
+        int lastWordEnd = safeDraftText.length() - 2;
+        return lastChar == ' ' && lastWordEnd >= 0 && !Character.isWhitespace(safeDraftText.charAt(lastWordEnd));
+    }
+    //End of Code by Archisha Sasson
 
     // sammy 4/7: formats the inline suggestion the same way tab accept would add it into the draft.
     static String buildDraftGhostSuggestion(String currentDraft, String suggestion) {

@@ -9,6 +9,7 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -59,10 +60,10 @@ class SentenceBuilderAppTest {
     }
 
     @Test
-    @DisplayName("Ghost shows when draft does not end with whitespace")
-    void ghostShowsWhenDraftDoesNotEndWithWhitespace() {
+    @DisplayName("Ghost shows at the end of the last typed word")
+    void ghostShowsAtEndOfLastTypedWord() {
         //Code by Archisha Sasson
-        // The inline ghost hint supplies its own separator, so it can show before the user types a space.
+        // The inline ghost can supply its own leading space when the caret is after the last word.
         assertTrue(SentenceBuilderApp.shouldShowDraftGhostSuggestion("hello", 5, "world"));
         //End of Code by Archisha Sasson
     }
@@ -80,6 +81,19 @@ class SentenceBuilderAppTest {
         // sammy 4/14: keeps the visibility rule safe when autocomplete has not produced a real next word yet.
         assertFalse(SentenceBuilderApp.shouldShowDraftGhostSuggestion("hello ", 6, ""));
     }
+
+    //Code by Archisha Sasson
+    @Test
+    @DisplayName("Ghost only shows at the last word boundary")
+    void ghostOnlyShowsAtLastWordBoundary() {
+        assertTrue(SentenceBuilderApp.isAtLastWordBoundary("hello", 5));
+        assertTrue(SentenceBuilderApp.isAtLastWordBoundary("hello ", 6));
+        assertTrue(SentenceBuilderApp.isAtLastWordBoundary("hello world", 11));
+        assertFalse(SentenceBuilderApp.isAtLastWordBoundary("hello  ", 7));
+        assertFalse(SentenceBuilderApp.isAtLastWordBoundary("hello\n", 6));
+        assertFalse(SentenceBuilderApp.isAtLastWordBoundary("hello world ", 5));
+    }
+    //End of Code by Archisha Sasson
 
     //Code by Archisha Sasson
     @Test
@@ -108,6 +122,35 @@ class SentenceBuilderAppTest {
     void ghostPreviewShowsOnlyTheInlineSuggestionText() {
         assertEquals(" little", SentenceBuilderApp.buildDraftGhostSuggestion("I am not a", "little"));
         assertEquals("little", SentenceBuilderApp.buildDraftGhostSuggestion("I am not a ", "little"));
+    }
+
+    //Code by Archisha Sasson
+    @Test
+    @DisplayName("Ghost placement uses the caret line when there is room")
+    void ghostPlacementUsesCaretLineWhenThereIsRoom() {
+        SentenceBuilderApp.DraftGhostPlacement placement =
+            SentenceBuilderApp.calculateDraftGhostPlacement(100, 20, 18, 60, 18, 300, 120);
+
+        assertEquals(102, placement.x());
+        assertEquals(20, placement.y());
+    }
+
+    @Test
+    @DisplayName("Ghost placement hides when the caret line is full")
+    void ghostPlacementHidesWhenCaretLineIsFull() {
+        SentenceBuilderApp.DraftGhostPlacement placement =
+            SentenceBuilderApp.calculateDraftGhostPlacement(260, 20, 18, 60, 18, 300, 120);
+
+        assertNull(placement);
+    }
+
+    @Test
+    @DisplayName("Ghost placement hides when there is no safe same-line space")
+    void ghostPlacementHidesWhenThereIsNoSafeSameLineSpace() {
+        SentenceBuilderApp.DraftGhostPlacement placement =
+            SentenceBuilderApp.calculateDraftGhostPlacement(260, 82, 18, 60, 18, 300, 110);
+
+        assertNull(placement);
     }
     //End of Code by Archisha Sasson
 
