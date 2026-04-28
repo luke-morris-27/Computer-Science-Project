@@ -53,7 +53,8 @@ class AutocompleteServiceTest {
         List<WeightedWord> result = service.suggestNextWords("Hello", 5);
 
         assertEquals("hello", gateway.lastLookupWord);
-        assertEquals(5, gateway.lastLimit);
+        // pool multiplier is 4 so the gateway is asked for 5 * 4 = 20 candidates
+        assertEquals(20, gateway.lastLimit);
         assertEquals(1, result.size());
     }
 

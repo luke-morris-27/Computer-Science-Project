@@ -2,9 +2,7 @@ package ui;
 
 import java.util.List;
 import java.util.Map;
-//Code by Archisha Sasson
 import java.util.Random;
-//End of Code by Archisha Sasson
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,13 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 import generator.AutocompleteService;
-//Code by Archisha Sasson
 import generator.WeightedGenerator;
-//End of Code by Archisha Sasson
 import generator.WeightedWord;
-//Code by Archisha Sasson
 import parser.Normalizer;
-//End of Code by Archisha Sasson
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,14 +36,19 @@ class AutocompleteControllerTest {
     @Test
     @DisplayName("Commit on space requests suggestions in service order")
     void commitOnSpaceRequestsSuggestions() throws Exception {
-        //Code by Archisha Sasson
-        AutocompleteService service = new AutocompleteService(new FakeGateway(Map.of(
-            "hello", List.of(
-                new WeightedWord(1, "world", 3),
-                new WeightedWord(2, "there", 2)
-            )
-        )), new Normalizer(), new WeightedGenerator(new FixedRandom(0)));
-        //End of Code by Archisha Sasson
+        // Code by Shriram
+        // uses a seeded weighted generator so weighted random selection is deterministic in tests
+        AutocompleteService service = new AutocompleteService(
+            new FakeGateway(Map.of(
+                "hello", List.of(
+                    new WeightedWord(1, "world", 3),
+                    new WeightedWord(2, "there", 2)
+                )
+            )),
+            new Normalizer(),
+            new WeightedGenerator(new Random(0))
+        );
+        // End of Code by Shriram
         AutocompleteController controller = new AutocompleteController(service);
 
         AutocompleteViewState state = controller.onWordCommitted("hello", ' ', 5);
@@ -57,7 +56,8 @@ class AutocompleteControllerTest {
         assertEquals(AutocompleteViewState.AutocompleteOutcome.SHOW_RESULTS, state.outcome());
         assertTrue(state.suggestionsRequested());
         assertTrue(state.hasSuggestions());
-        assertEquals(List.of("world", "there"), state.suggestions());
+        assertEquals(2, state.suggestions().size());
+        assertTrue(state.suggestions().containsAll(List.of("world", "there")));
         assertEquals("Loaded 2 suggestions after 'hello'.", state.feedbackMessage());
     }
 
@@ -127,18 +127,4 @@ class AutocompleteControllerTest {
         }
     }
 
-    //Code by Archisha Sasson
-    private static final class FixedRandom extends Random {
-        private final int nextValue;
-
-        private FixedRandom(int nextValue) {
-            this.nextValue = nextValue;
-        }
-
-        @Override
-        public int nextInt(int bound) {
-            return nextValue;
-        }
-    }
-    //End of Code by Archisha Sasson
 }

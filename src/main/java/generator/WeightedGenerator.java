@@ -115,6 +115,31 @@ public class WeightedGenerator {
     }
     //End of Code by Archisha Sasson
 
+    // Code by Shriram
+    // picks unique weighted suggestions for autocomplete using weighted random selection without replacement
+    public List<WeightedWord> pickWeightedSuggestions(List<WeightedWord> candidates, int limit) {
+        if (limit <= 0 || candidates == null || candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // copies the candidate list so we can remove picked words without changing the input
+        List<WeightedWord> remaining = new ArrayList<>(candidates);
+        List<WeightedWord> chosen = new ArrayList<>();
+
+        // keeps picking weighted-random words until we hit the limit or run out
+        while (chosen.size() < limit && !remaining.isEmpty()) {
+            WeightedWord pick = chooseWeighted(remaining);
+            if (pick == null) {
+                break;
+            }
+            chosen.add(pick);
+            remaining.remove(pick);
+        }
+
+        return chosen;
+    }
+    // End of Code by Shriram
+
     private WeightedWord chooseWeighted(List<WeightedWord> options) {
         int totalWeight = 0;
         for (WeightedWord option : options) {

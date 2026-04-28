@@ -7,49 +7,55 @@
 package generator;
 
 import java.sql.SQLException;
-//Code by Archisha Sasson
-import java.util.ArrayList;
-//End of Code by Archisha Sasson
 import java.util.Collections;
 import java.util.List;
-//Code by Archisha Sasson
-import java.util.Random;
-//End of Code by Archisha Sasson
 
 import parser.Normalizer;
 
 public class AutocompleteService {
+    // Code by Shriram
+    // controls how many candidates we pull from the database before weighted selection
+    private static final int CANDIDATE_POOL_MULTIPLIER = 4;
+    // End of Code by Shriram
+
     // talks to the data layer for autocomplete lookups
     private final AutocompleteGateway gateway;
 
     // cleans user input before lookup or insert
     private final Normalizer normalizer;
 
-    //Code by Archisha Sasson
-    // uses the weighted generator's next-word chooser for autocomplete ordering
+    // Code by Shriram
+    // uses the weighted algorithm class to pick autocomplete suggestions
     private final WeightedGenerator weightedGenerator;
-    //End of Code by Archisha Sasson
+
+    // remembers the most recent suggestion word so we can return the same result for repeated lookups
+    private String cachedWord;
+
+    // remembers the most recent limit alongside the cached word
+    private int cachedLimit;
+
+    // remembers the most recent suggestion list so the ghost text and the suggestion list cannot disagree
+    private List<WeightedWord> cachedSuggestions;
+    // End of Code by Shriram
 
     // builds the service with a default normalizer
     public AutocompleteService(AutocompleteGateway gateway) {
-        this(gateway, new Normalizer());
+        this(gateway, new Normalizer(), new WeightedGenerator());
     }
 
-    // builds the service with injected dependencies
+    // builds the service with a custom normalizer and a default weighted generator
     public AutocompleteService(AutocompleteGateway gateway, Normalizer normalizer) {
-        //Code by Archisha Sasson
-        this(gateway, normalizer, new WeightedGenerator(new Random()));
-        //End of Code by Archisha Sasson
+        this(gateway, normalizer, new WeightedGenerator());
     }
 
-    //Code by Archisha Sasson
-    // builds the service with the weighted generator used to rank suggestions
+    // Code by Shriram
+    // builds the service with all dependencies injected so weighted selection can be deterministic in tests
     public AutocompleteService(AutocompleteGateway gateway, Normalizer normalizer, WeightedGenerator weightedGenerator) {
         this.gateway = gateway;
         this.normalizer = normalizer;
-        this.weightedGenerator = weightedGenerator == null ? new WeightedGenerator(new Random()) : weightedGenerator;
+        this.weightedGenerator = weightedGenerator == null ? new WeightedGenerator() : weightedGenerator;
     }
-    //End of Code by Archisha Sasson
+    // End of Code by Shriram
 
     // only triggers suggestions after space or comma
     public boolean shouldQuerySuggestions(char committedChar) {
@@ -68,9 +74,26 @@ public class AutocompleteService {
             return Collections.emptyList();
         }
 
-        //Code by Archisha Sasson
-        return orderSuggestionsWithWeightedGenerator(gateway.findNextWordSuggestions(normalized, limit), limit);
-        //End of Code by Archisha Sasson
+        // Code by Shriram
+        // returns the cached result so the ghost text and suggestion list always agree when the same word is queried
+        if (normalized.equals(cachedWord) && limit == cachedLimit && cachedSuggestions != null) {
+            return cachedSuggestions;
+        }
+
+        // pulls a wider candidate pool so weighted selection has meaningful options to choose from
+        int poolSize = limit * CANDIDATE_POOL_MULTIPLIER;
+        List<WeightedWord> candidates = gateway.findNextWordSuggestions(normalized, poolSize);
+
+        // delegates to the weighted algorithm class so suggestions reflect frequency-weighted probability
+        List<WeightedWord> suggestions = weightedGenerator.pickWeightedSuggestions(candidates, limit);
+
+        // caches the freshly computed result so repeated lookups for the same word stay consistent
+        cachedWord = normalized;
+        cachedLimit = limit;
+        cachedSuggestions = suggestions;
+
+        return suggestions;
+        // End of Code by Shriram
     }
 
     // stores a new word if the user typed one we do not know yet
@@ -95,24 +118,4 @@ public class AutocompleteService {
         return normalized == null ? "" : normalized.trim();
     }
 
-    //Code by Archisha Sasson
-    private List<WeightedWord> orderSuggestionsWithWeightedGenerator(List<WeightedWord> suggestions, int limit) {
-        if (suggestions == null || suggestions.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<WeightedWord> remaining = new ArrayList<>(suggestions);
-        List<WeightedWord> ordered = new ArrayList<>();
-        while (!remaining.isEmpty() && ordered.size() < limit) {
-            WeightedWord chosen = weightedGenerator.chooseWeightedSuggestion(remaining);
-            if (chosen == null) {
-                break;
-            }
-
-            ordered.add(chosen);
-            remaining.remove(chosen);
-        }
-        return ordered;
-    }
-    //End of Code by Archisha Sasson
 }
