@@ -116,6 +116,11 @@ public class SentenceBuilderApp extends Application {
     //Code by Archisha Sasson
     private static final double DRAFT_GHOST_MARGIN = 10;
     private static final double DRAFT_GHOST_CARET_GAP = 2;
+    // Code by Shriram
+    // separates multiple file paths inside the import path field so the load handler can split them back apart
+    private static final String MULTI_PATH_SEPARATOR = ";";
+    // End of Code by Shriram
+
     private static final String DRAFT_TEXT_STYLE = "-fx-font-family: 'Georgia'; -fx-font-size: 16px;";
     private static final String DRAFT_GHOST_TEXT_STYLE = DRAFT_TEXT_STYLE + "-fx-text-fill: #7a7a7a;";
     //End of Code by Archisha Sasson
@@ -467,21 +472,30 @@ public class SentenceBuilderApp extends Application {
 
     private Tab createImportTab(Stage stage) {
         TextField pathField = new TextField();
-        pathField.setPromptText("Select a .txt file to validate and preview");
+        // Code by Shriram
+        // updates the placeholder so users know they can pick more than one file at once
+        pathField.setPromptText("Select one or more .txt files to validate and preview");
+        // End of Code by Shriram
         HBox.setHgrow(pathField, Priority.ALWAYS);
 
         Button browseButton = new Button("Browse");
         browseButton.setOnAction(event -> {
-            // Standard JavaFX file chooser used only to select a local text file.
+            // Code by Shriram
+            // standard JavaFX multi-file chooser so the user can import several text files in one go
             FileChooser chooser = new FileChooser();
-            chooser.setTitle("Choose Text File");
+            chooser.setTitle("Choose Text Files");
             chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt", "*.*"));
-            java.io.File selectedFile = chooser.showOpenDialog(stage);
-            if (selectedFile != null) {
-                pathField.setText(selectedFile.getAbsolutePath());
+            java.util.List<java.io.File> selectedFiles = chooser.showOpenMultipleDialog(stage);
+            if (selectedFiles != null && !selectedFiles.isEmpty()) {
+                // joins the selected paths with a separator the load handler can split back apart
+                String joined = selectedFiles.stream()
+                    .map(java.io.File::getAbsolutePath)
+                    .collect(java.util.stream.Collectors.joining(MULTI_PATH_SEPARATOR));
+                pathField.setText(joined);
             }
+            // End of Code by Shriram
         });
-        
+
         Button loadButton = new Button("Validate and Load");
         loadButton.setOnAction(event -> handleImport(pathField.getText()));
 
@@ -796,26 +810,85 @@ public class SentenceBuilderApp extends Application {
         return box;
     }
 
-    private void handleImport(String rawPath) {
-        // First validate using the real import controller so the UI preview follows the same
-        // input rules as the rest of the application.
-        ImportViewState state = importController.validatePath(rawPath);
-        importMessageLabel.setText(state.message());
-
-        String trimmedPath = rawPath == null ? "" : rawPath.trim();
-        if (!trimmedPath.toLowerCase(Locale.ROOT).endsWith(".txt")) {
-            importMessageLabel.setText("Please choose a .txt file. PDF, DOCX, and other file types are not supported.");
-            log("Import validation failed: unsupported file type.");
+    // Code by Shriram
+    // accepts a single raw path or a separator-joined list of paths so a single browse can import multiple files in one click
+    private void handleImport(String rawPathOrPaths) {
+        if (rawPathOrPaths == null || rawPathOrPaths.isBlank()) {
+            ImportViewState state = importController.validatePath(rawPathOrPaths);
+            importMessageLabel.setText(state.message());
             return;
         }
 
-        try {
-            Path path = Path.of(rawPath.trim());
-            // Parse the file and move its data into the in-memory preview model.
-            ParseResult result = previewParser.parse(path);
-            demoState.load(result, path);
-            importMessageLabel.setText("Loaded " + result.getFileName() + ". The generate, autocomplete, and reports tabs are now ready.");
-            updateSummary(result);
+        // splits the joined path string back into individual paths so each file can be processed independently
+        java.util.List<String> rawPaths = java.util.Arrays.stream(rawPathOrPaths.split(MULTI_PATH_SEPARATOR))
+            .map(String::trim)
+            .filter(text -> !text.isEmpty())
+            .toList();
+
+        int successCount = 0;
+        int duplicateCount = 0;
+        int failureCount = 0;
+        ParseResult lastImported = null;
+
+        for (String rawPath : rawPaths) {
+            // basic path validation reuses the original controller logic so single-file behavior is unchanged
+            ImportViewState pathState = importController.validatePath(rawPath);
+            if (!pathState.valid()) {
+                failureCount++;
+                log("Skipped " + rawPath + ": " + pathState.message());
+                continue;
+            }
+
+            // file extension check happens once per file so a bad mime in the middle of a batch does not abort the rest
+            if (!rawPath.toLowerCase(Locale.ROOT).endsWith(".txt")) {
+                failureCount++;
+                log("Skipped " + rawPath + ": only .txt files are supported.");
+                continue;
+            }
+
+            Path path = Path.of(rawPath);
+
+            // duplicate check uses file-hash based deduplication so the same content is not imported twice
+            ImportViewState dedupState = importController.checkForDuplicate(path);
+            if (dedupState.duplicate()) {
+                duplicateCount++;
+                log("Skipped " + path.getFileName() + ": this file has already been imported.");
+                continue;
+            }
+            if (!dedupState.valid()) {
+                failureCount++;
+                log("Skipped " + path.getFileName() + ": " + dedupState.message());
+                continue;
+            }
+
+            try {
+                // parses the file and merges its data into the preview state so multiple files accumulate
+                ParseResult result = previewParser.parse(path);
+                demoState.merge(result, path);
+                lastImported = result;
+                successCount++;
+                log("Imported " + result.getFileName() + " at " + IMPORT_TIME_FORMATTER.format(result.getImportedAt()) + ".");
+            } catch (IOException exception) {
+                failureCount++;
+                log("Import preview failed for " + path.getFileName() + ": " + exception.getMessage());
+            }
+        }
+
+        // builds a single summary message so the import label reflects the whole batch instead of the last file alone
+        StringBuilder summary = new StringBuilder();
+        summary.append("Imported ").append(successCount).append(successCount == 1 ? " file" : " files");
+        if (duplicateCount > 0) {
+            summary.append(", skipped ").append(duplicateCount).append(duplicateCount == 1 ? " duplicate" : " duplicates");
+        }
+        if (failureCount > 0) {
+            summary.append(", ").append(failureCount).append(failureCount == 1 ? " failure" : " failures");
+        }
+        summary.append(".");
+        importMessageLabel.setText(summary.toString());
+
+        // refreshes the rest of the UI only when at least one file made it through so the workspace state matches reality
+        if (successCount > 0 && lastImported != null) {
+            updateSummary(lastImported);
             setWorkspaceEnabled(true);
             sentenceDraftArea.clear();
             generateOutputArea.clear();
@@ -823,14 +896,9 @@ public class SentenceBuilderApp extends Application {
             resetAutocompleteSuggestions();
             clearDraftSuggestionPreview(DEFAULT_DRAFT_SUGGESTION_MESSAGE);
             refreshReports();
-            log("Imported " + result.getFileName() + " at " + IMPORT_TIME_FORMATTER.format(result.getImportedAt()) + ".");
-        } catch (IOException exception) {
-            importMessageLabel.setText(
-                "Import failed. Please choose a plain .txt file with readable text content."
-            );
-            log("Import preview failed: " + exception.getMessage());
         }
     }
+    // End of Code by Shriram
 
     private void handleGenerate() {
         // Blank start-word input means "continue from the current draft" when possible.
@@ -1599,6 +1667,43 @@ public class SentenceBuilderApp extends Application {
             result.getWordCounts().keySet().forEach(this::getOrCreateWordId);
             //End of Code by Archisha Sasson
         }
+
+        // Code by Shriram
+        // adds the new file's parsed counts to the existing preview state so multi-file imports accumulate rather than overwriting
+        private void merge(ParseResult incoming, Path sourcePath) {
+            // first import behaves the same as a regular load so the original flow stays untouched when only one file is brought in
+            if (parseResult == null) {
+                load(incoming, sourcePath);
+                return;
+            }
+
+            // merges per-word totals so each word's frequency reflects every imported file
+            incoming.getWordCounts().forEach((word, count) ->
+                parseResult.getWordCounts().merge(word, count, Integer::sum));
+
+            // merges sentence-start counts so generation can still pick a realistic opening word from the combined corpus
+            incoming.getSentenceStartCounts().forEach((word, count) ->
+                parseResult.getSentenceStartCounts().merge(word, count, Integer::sum));
+
+            // merges sentence-end counts to keep reports consistent with the combined data set
+            incoming.getSentenceEndCounts().forEach((word, count) ->
+                parseResult.getSentenceEndCounts().merge(word, count, Integer::sum));
+
+            // merges next-word transitions so weighted and greedy generation see all observed transitions across files
+            incoming.getNextWordCounts().forEach((current, nextMap) -> {
+                Map<String, Integer> existingNextMap = parseResult.getNextWordCounts()
+                    .computeIfAbsent(current, key -> new LinkedHashMap<>());
+                nextMap.forEach((next, count) -> existingNextMap.merge(next, count, Integer::sum));
+            });
+
+            // assigns ids for any newly seen words so autocomplete and generation can reference them
+            incoming.getWordCounts().keySet().forEach(this::getOrCreateWordId);
+
+            // updates aggregate totals so the reports tab reflects the combined corpus
+            parseResult.setTotalWords(parseResult.getTotalWords() + incoming.getTotalWords());
+            parseResult.setTotalSentences(parseResult.getTotalSentences() + incoming.getTotalSentences());
+        }
+        // End of Code by Shriram
 
         public int countFollowing(String word, String nextWord) {
             if (parseResult == null) return 0;

@@ -46,4 +46,34 @@ class ImportControllerTest {
         ImportViewState state = controller.validatePath("/does/not/exist.txt");
         assertEquals(false, state.valid());
     }
+
+    // Code by Shriram
+    @Test
+    @DisplayName("First import of a file is marked ready and not duplicate")
+    void firstImportOfFileIsNotDuplicate() throws Exception {
+        ImportController freshController = new ImportController();
+        Path file = Files.createTempFile("dedup-first", ".txt");
+        Files.writeString(file, "hello world");
+
+        ImportViewState state = freshController.checkForDuplicate(file);
+
+        assertTrue(state.valid());
+        assertEquals(false, state.duplicate());
+    }
+
+    @Test
+    @DisplayName("Second import of the same file is flagged as duplicate")
+    void secondImportOfFileIsDuplicate() throws Exception {
+        ImportController freshController = new ImportController();
+        Path file = Files.createTempFile("dedup-second", ".txt");
+        Files.writeString(file, "hello world");
+
+        freshController.checkForDuplicate(file);
+        ImportViewState state = freshController.checkForDuplicate(file);
+
+        assertEquals(false, state.valid());
+        assertTrue(state.duplicate());
+        assertEquals("This file has already been imported.", state.message());
+    }
+    // End of Code by Shriram
 }
