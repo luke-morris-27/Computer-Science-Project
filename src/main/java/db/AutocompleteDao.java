@@ -65,13 +65,57 @@ public class AutocompleteDao implements AutocompleteGateway {
     @Override
     // makes sure a word exists in the words table
     public void ensureWordExists(String normalizedWord) throws SQLException {
+        // sammy 5/2: ignore empty values so we do not create meaningless word rows.
         if (normalizedWord == null || normalizedWord.isBlank()) {
+            // sammy 5/2: there is nothing valid to persist for a blank word.
             return;
         }
 
-        // opens the database and inserts the word if missing
+        // sammy 5/2: open one connection so the word lookup and user-input tracking stay together.
         try (Connection conn = WordDb.openConnection()) {
-            WordDb.getOrCreateWordId(normalizedWord, conn);
+            // sammy 5/2: use one small transaction so the word row and user-input metadata stay consistent.
+            conn.setAutoCommit(false);
+            try {
+                // sammy 5/2: create the word if it is new or reuse the existing word id if it is already known.
+                int wordId = WordDb.getOrCreateWordId(normalizedWord, conn);
+                // sammy 5/2: record that this word came through the user-input autocomplete flow.
+                recordUserInputWord(conn, wordId);
+                // sammy 5/2: refresh the reusable word row with a recent seen timestamp.
+                updateWordLastSeen(conn, wordId);
+                // sammy 5/2: commit both metadata updates together.
+                conn.commit();
+            } catch (SQLException exception) {
+                // sammy 5/2: roll back the small transaction if either tracking step fails.
+                conn.rollback();
+                // sammy 5/2: rethrow so the ui can surface the database failure.
+                throw exception;
+            }
+        }
+    }
+
+    // sammy 5/2: add a history row so user-entered words are actually represented in the database metadata layer.
+    private void recordUserInputWord(Connection conn, int wordId) throws SQLException {
+        // sammy 5/2: insert one user_input_words row for this user-entered word event.
+        try (PreparedStatement ps = conn.prepareStatement(
+            "INSERT INTO user_input_words (word_id) VALUES (?)"
+        )) {
+            // sammy 5/2: tie the event row back to the canonical words row.
+            ps.setInt(1, wordId);
+            // sammy 5/2: execute the event insert immediately inside the current transaction.
+            ps.executeUpdate();
+        }
+    }
+
+    // sammy 5/2: update the word row so existing metadata reflects that the word was touched recently.
+    private void updateWordLastSeen(Connection conn, int wordId) throws SQLException {
+        // sammy 5/2: stamp the word row with the current database time for later inspection/reporting.
+        try (PreparedStatement ps = conn.prepareStatement(
+            "UPDATE words SET last_seen_at = CURRENT_TIMESTAMP WHERE word_id = ?"
+        )) {
+            // sammy 5/2: target the exact canonical word row we just inserted or reused.
+            ps.setInt(1, wordId);
+            // sammy 5/2: apply the metadata update as part of the same transaction.
+            ps.executeUpdate();
         }
     }
 }

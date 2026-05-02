@@ -72,39 +72,33 @@ public class DbGeneratorRepository implements GeneratorRepository {
 
     @Override
     public void saveGeneratedSentence(String sentenceText, String algorithmName, Integer startingWordId) throws SQLException {
+        // sammy 5/2: skip storage when generation produced no usable sentence text.
         if (sentenceText == null || sentenceText.isBlank()) {
+            // sammy 5/2: returning here keeps the table free of blank history rows.
             return;
         }
 
+        // sammy 5/2: open one connection for the sentence-history insert.
         try (Connection conn = WordDb.openConnection();
+             // sammy 5/2: insert every generated sentence row so duplicate reporting can work.
              PreparedStatement ps = conn.prepareStatement(
                  "INSERT INTO generated_sentences (sentence_text, algorithm_name, starting_word_id) " +
                      "VALUES (?, ?, ?)"
              )) {
+            // sammy 5/2: store the exact sentence text that was generated.
             ps.setString(1, sentenceText);
+            // sammy 5/2: store which generation algorithm produced the sentence.
             ps.setString(2, algorithmName);
+            // sammy 5/2: keep null handling explicit when there was no resolved starting word id.
             if (startingWordId == null) {
+                // sammy 5/2: write a SQL null instead of forcing a fake id.
                 ps.setNull(3, java.sql.Types.INTEGER);
             } else {
+                // sammy 5/2: store the real starting word id when one exists.
                 ps.setInt(3, startingWordId);
             }
+            // sammy 5/2: execute the insert without suppressing duplicates because duplicates are valid history now.
             ps.executeUpdate();
-        } catch (SQLException e) {
-            if (!generatedSentenceExists(sentenceText)) {
-                throw e;
-            }
-        }
-    }
-
-    private boolean generatedSentenceExists(String sentenceText) throws SQLException {
-        try (Connection conn = WordDb.openConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                 "SELECT sentence_id FROM generated_sentences WHERE sentence_text = ?"
-             )) {
-            ps.setString(1, sentenceText);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
         }
     }
 

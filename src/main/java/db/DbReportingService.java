@@ -106,20 +106,27 @@ public final class DbReportingService implements UiReportingService {
     }
 
     private List<WordReportView> loadAggregatedWordRows() throws SQLException {
+        // sammy 5/2: use a left join so words added outside file imports still appear in the reports list.
         String sql =
             "SELECT w.word_text, "
                 + "COALESCE(SUM(wfs.count_in_file), 0) AS total_count, "
                 + "COALESCE(SUM(wfs.start_in_file), 0) AS start_count, "
                 + "COALESCE(SUM(wfs.end_in_file), 0) AS end_count "
                 + "FROM words w "
-                + "INNER JOIN word_file_stats wfs ON wfs.word_id = w.word_id "
+                + "LEFT JOIN word_file_stats wfs ON wfs.word_id = w.word_id "
                 + "GROUP BY w.word_id, w.word_text";
 
+        // sammy 5/2: open one reporting connection for the word aggregation query.
         try (Connection conn = WordDb.openConnection();
+             // sammy 5/2: prepare the all-words report query exactly once.
              PreparedStatement ps = conn.prepareStatement(sql);
+             // sammy 5/2: execute the query and stream the aggregated rows back.
              ResultSet rs = ps.executeQuery()) {
+            // sammy 5/2: collect the report rows into a mutable list before higher-level sorting/filtering.
             List<WordReportView> list = new ArrayList<>();
+            // sammy 5/2: convert every result row into the ui-facing report record.
             while (rs.next()) {
+                // sammy 5/2: keep words with zero imported-file counts visible by preserving the left-join zeros.
                 list.add(new WordReportView(
                     rs.getString("word_text"),
                     rs.getInt("total_count"),
@@ -129,6 +136,7 @@ public final class DbReportingService implements UiReportingService {
                     0
                 ));
             }
+            // sammy 5/2: return the complete word list so reports can sort and filter it later.
             return list;
         }
     }

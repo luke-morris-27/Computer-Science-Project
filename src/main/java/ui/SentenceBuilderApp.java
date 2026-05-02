@@ -40,14 +40,10 @@ import db.WordFileStatsDao;
 import generator.AutocompleteService;
 import generator.GenerationAlgorithm;
 import generator.GenerationService;
-//Code by Archisha Sasson
 import generator.GeneratorRepository;
 import generator.GreedyGenerator;
 import generator.RandomGenerator;
-//End of Code by Archisha Sasson
-//Code by Archisha Sasson
 import generator.WeightedGenerator;
-//End of Code by Archisha Sasson
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -55,15 +51,12 @@ import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-//Code by Archisha Sasson
 import javafx.geometry.BoundingBox;
 import javafx.geometry.Bounds;
-//End of Code by Archisha Sasson
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-//Code by Archisha Sasson
 import javafx.geometry.Rectangle2D;
-//End of Code by Archisha Sasson
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -79,32 +72,26 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-//Code by Archisha Sasson
 import javafx.scene.control.skin.TextAreaSkin;
-//End of Code by Archisha Sasson
 import javafx.scene.input.KeyCode;
-//Code by Archisha Sasson
 import javafx.scene.input.KeyEvent;
-//End of Code by Archisha Sasson
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-//Code by Archisha Sasson
 import javafx.scene.layout.Pane;
-//End of Code by Archisha Sasson
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import parser.DatabaseConfig;
 import parser.FileStatsPersistenceService;
 import parser.ImportPreparationResult;
 import parser.ImportPreparationStatus;
 import parser.Normalizer;
 import parser.ParseResult;
-import parser.DatabaseConfig;
 import parser.TextParser;
 import parser.Tokenizer;
 import parser.WordDb;
@@ -722,15 +709,20 @@ public class SentenceBuilderApp extends Application {
         reportWordLimitSpinner = new Spinner<>();
         reportWordLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 50));
         reportWordLimitSpinner.setEditable(true);
+        reportWordLimitSpinner.setPrefWidth(220);
 
         reportSentenceLimitSpinner = new Spinner<>();
         reportSentenceLimitSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 500, 25));
         reportSentenceLimitSpinner.setEditable(true);
+        reportSentenceLimitSpinner.setPrefWidth(220);
 
         duplicatesOnlyCheckBox = new CheckBox("Duplicates only");
+        duplicatesOnlyCheckBox.setOnAction(event -> refreshReports());
 
         Button refreshButton = new Button("Refresh Reports");
         refreshButton.setOnAction(event -> refreshReports());
+        refreshButton.setPrefWidth(180);
+
 
         TableView<WordReportView> reportTable = buildWordTable();
         ListView<String> sentenceHistoryList = new ListView<>(sentenceRows);
@@ -738,27 +730,33 @@ public class SentenceBuilderApp extends Application {
         sentenceHistoryList.setMaxHeight(220);
         reportTable.setPrefHeight(260);
         sentenceHistoryList.setPlaceholder(new Label("Generated sentences will appear here."));
+        Label sentenceHistoryTitle = new Label("Generated Sentence History");
+        sentenceHistoryTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #6f1d2a;");
 
         GridPane controls = new GridPane();
         controls.setHgap(12);
         controls.setVgap(12);
+        Label sentenceLimitLabel = new Label("Sentence limit");
+        sentenceLimitLabel.setPrefWidth(140);
         controls.add(new Label("Word sort"), 0, 0);
         controls.add(reportSortBox, 1, 0);
-        controls.add(new Label("Word limit"), 2, 0);
-        controls.add(reportWordLimitSpinner, 3, 0);
-        controls.add(new Label("Sentence limit"), 0, 1);
-        controls.add(reportSentenceLimitSpinner, 1, 1);
-        controls.add(duplicatesOnlyCheckBox, 2, 1);
-        controls.add(refreshButton, 3, 1);
-        controls.add(new Label("Search"), 0, 2);
-        controls.add(reportSearchField, 1, 2);
-        controls.add(reportSecondWordField, 2, 2, 2, 1);
+        controls.add(refreshButton, 2, 0);
+        controls.add(new Label("Search"), 0, 1);
+        controls.add(reportSearchField, 1, 1);
+        controls.add(reportSecondWordField, 2, 1, 2, 1);
+        controls.add(sentenceLimitLabel, 0, 2);
+        controls.add(reportSentenceLimitSpinner, 1, 2);
+        GridPane.setHalignment(reportSentenceLimitSpinner, HPos.RIGHT);
+        controls.add(new Label("Word limit"), 2, 2);
+        controls.add(reportWordLimitSpinner, 3, 2);
 
         VBox content = new VBox(14,
             titledLabel("Reports"),
             new Label("Review imported word stats and your generated sentence history."),
             controls,
             reportTable,
+            sentenceHistoryTitle,
+            duplicatesOnlyCheckBox,
             sentenceHistoryList
         );
         content.setPadding(new Insets(18));

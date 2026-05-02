@@ -66,7 +66,6 @@ CREATE TABLE generated_sentences (
     created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     algorithm_name    VARCHAR(100)  NULL,
     starting_word_id  INT           NULL,
-    UNIQUE (sentence_text(512)),
     FOREIGN KEY (starting_word_id) REFERENCES words(word_id) ON DELETE SET NULL
 );
 

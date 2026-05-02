@@ -69,6 +69,15 @@ class AutocompleteDaoIT extends DatabaseIntegrationTestSupport {
         dao.ensureWordExists("newword");
 
         assertEquals(1, queryForInt("SELECT COUNT(*) FROM words WHERE word_text = ?", "newword"));
+        assertEquals(
+            1,
+            queryForInt(
+                "SELECT COUNT(*) FROM user_input_words uiw " +
+                    "JOIN words w ON w.word_id = uiw.word_id " +
+                    "WHERE w.word_text = ?",
+                "newword"
+            )
+        );
     }
 
     private int insertWord(String wordText) throws Exception {
