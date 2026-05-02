@@ -39,12 +39,13 @@ public class WeightedGeneratorIT extends DatabaseIntegrationTestSupport {
 
         String sentence = generator.generateWeighted("missing", 5);
 
-        assertEquals("alpha beta", sentence, "Expected generation to fall back to the only valid start word");
+        assertEquals("missing alpha beta", sentence,
+            "Unknown start words are kept, then generation continues from the fallback start word");
         assertEquals(
             1,
             queryForInt(
                 "SELECT COUNT(*) FROM generated_sentences WHERE sentence_text = ? AND algorithm_name = ?",
-                "alpha beta",
+                "missing alpha beta",
                 "weighted"
             ),
             "Expected the weighted sentence to be stored with the weighted algorithm label"
@@ -53,7 +54,7 @@ public class WeightedGeneratorIT extends DatabaseIntegrationTestSupport {
             alphaId,
             queryForInt(
                 "SELECT starting_word_id FROM generated_sentences WHERE sentence_text = ?",
-                "alpha beta"
+                "missing alpha beta"
             ),
             "Expected the stored sentence to keep the chosen starting word ID"
         );

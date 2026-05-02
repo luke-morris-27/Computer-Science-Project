@@ -7,40 +7,28 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-// Code by Shriram Janardhan - Database-backed unique word storage (MySQL)
+/**
+ * JDBC connections to MySQL/MariaDB. Configure URL, user, and password via {@link DatabaseConfig}
+ * (system properties, environment variables, optional root {@code .env}, or classpath {@code database.properties}).
+ */
 public final class WordDb {
-    private static final String DEFAULT_URL =
-        "jdbc:mysql://localhost:3306/sentence_builder?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
 
     private WordDb() {
     }
 
     public static Connection openConnection() throws SQLException {
-        String url = getSetting("SENTENCE_BUILDER_DB_URL", DEFAULT_URL);
-        String user = getSetting("SENTENCE_BUILDER_DB_USER", "root");
-        String password = getSetting("SENTENCE_BUILDER_DB_PASSWORD", "");
-        return DriverManager.getConnection(url, user, password);
+        return DriverManager.getConnection(
+            DatabaseConfig.resolveJdbcUrl(),
+            DatabaseConfig.resolveUsername(),
+            DatabaseConfig.resolvePassword()
+        );
     }
 
-    private static String getSetting(String key, String defaultValue) {
-        String sys = System.getProperty(key);
-        if (sys != null && !sys.isBlank()) {
-            return sys;
-        }
-        String env = System.getenv(key);
-        if (env != null && !env.isBlank()) {
-            return env;
-        }
-        return defaultValue;
-    }
-
-    // Shriram Janardhan: getOrCreateWordId - atomic upsert for unique word storage
     public static int getOrCreateWordId(String word, Connection conn) throws SQLException {
         if (word == null || word.isBlank()) {
             throw new SQLException("Word must be non-empty");
         }
 
-        // Code by Archisha Sasson
         Integer existingId = findWordId(word, conn);
         if (existingId != null) {
             return existingId;
@@ -66,10 +54,8 @@ public final class WordDb {
             }
             throw e;
         }
-        // End of Code by Archisha Sasson
     }
 
-    // Code by Archisha Sasson
     private static Integer findWordId(String word, Connection conn) throws SQLException {
         try (PreparedStatement lookup = conn.prepareStatement(
             "SELECT word_id FROM words WHERE word_text = ?"
@@ -83,6 +69,4 @@ public final class WordDb {
             }
         }
     }
-    // End of Code by Archisha Sasson
 }
-// End of code by Shriram Janardhan (WordDb, database-backed word storage)

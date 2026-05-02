@@ -2,6 +2,8 @@ package ui;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +11,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
+import parser.ImportDeduplicationService;
+import parser.ImportHashLookup;
+import parser.ImportPreparationResult;
+import parser.ImportPreparationStatus;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
@@ -21,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("task2-person5")
 @DisplayName("Import Controller Tests")
 class ImportControllerTest {
-    private final ImportController controller = new ImportController();
+    private final ImportController controller =
+        new ImportController(new ImportDeduplicationService(), hash -> false);
 
     @BeforeEach
     void announceTest(TestInfo testInfo) {
@@ -51,27 +60,33 @@ class ImportControllerTest {
     @Test
     @DisplayName("First import of a file is marked ready and not duplicate")
     void firstImportOfFileIsNotDuplicate() throws Exception {
-        ImportController freshController = new ImportController();
+        ImportController freshController =
+            new ImportController(new ImportDeduplicationService(), hash -> false);
         Path file = Files.createTempFile("dedup-first", ".txt");
         Files.writeString(file, "hello world");
 
-        ImportViewState state = freshController.checkForDuplicate(file);
+        ImportPreparationResult prep = freshController.prepareImport(file);
 
-        assertTrue(state.valid());
-        assertEquals(false, state.duplicate());
+        assertEquals(ImportPreparationStatus.READY, prep.status());
+        assertTrue(prep.readyToImport());
     }
 
     @Test
     @DisplayName("Second import of the same file is flagged as duplicate")
     void secondImportOfFileIsDuplicate() throws Exception {
-        ImportController freshController = new ImportController();
+        Set<String> persistedHashes = new HashSet<>();
+        ImportHashLookup lookup = persistedHashes::contains;
+        ImportController c = new ImportController(new ImportDeduplicationService(), lookup);
         Path file = Files.createTempFile("dedup-second", ".txt");
         Files.writeString(file, "hello world");
 
-        freshController.checkForDuplicate(file);
-        ImportViewState state = freshController.checkForDuplicate(file);
+        ImportPreparationResult first = c.prepareImport(file);
+        assertEquals(ImportPreparationStatus.READY, first.status());
+        persistedHashes.add(first.fileHash());
 
-        assertEquals(false, state.valid());
+        ImportViewState state = c.checkForDuplicate(file);
+
+        assertFalse(state.valid());
         assertTrue(state.duplicate());
         assertEquals("This file has already been imported.", state.message());
     }

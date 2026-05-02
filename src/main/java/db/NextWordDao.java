@@ -36,6 +36,7 @@ public class NextWordDao {
             ps.setInt(1, fromId);
             ps.setInt(2, toId);
             ps.setBoolean(3, followsStart);
+            ps.setBoolean(4, false);
             ps.executeUpdate();
         } catch (SQLException e) {
             if (updateExistingRow(fromId, toId, followsStart) == 0) {

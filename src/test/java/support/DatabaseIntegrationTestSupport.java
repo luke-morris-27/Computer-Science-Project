@@ -5,7 +5,7 @@ package support;
  * Created by: Archisha Sasson
  * Description: Provides shared setup utilities for ParserDB and generator
  * database integration tests, including schema reset and query helpers.
- * Example: Resets the test schema before each integration test.
+ * Example: Resets the test schema before each integration test against MySQL.
  */
 
 import java.io.BufferedReader;
@@ -39,7 +39,8 @@ public abstract class DatabaseIntegrationTestSupport {
         String dbUrl = getConfiguredDatabaseUrl();
         Assumptions.assumeTrue(
             dbUrl != null && !dbUrl.isBlank(),
-            "DB integration tests require SENTENCE_BUILDER_DB_URL to point at a dedicated test database."
+            "DB integration tests require SENTENCE_BUILDER_DB_URL to point at a dedicated test database "
+                + "(see README). Example: jdbc:mysql://localhost:3306/sentence_builder_test?..."
         );
 
         try (Connection conn = WordDb.openConnection();

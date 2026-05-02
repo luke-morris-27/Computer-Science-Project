@@ -26,6 +26,10 @@ bin/
 ### VS Code ###
 .vscode/
 
+### Local JDBC secrets ###
+**/src/main/resources/database.properties
+.env
+
 ### Maven / Project Artifacts ###
 /target/
 *.log

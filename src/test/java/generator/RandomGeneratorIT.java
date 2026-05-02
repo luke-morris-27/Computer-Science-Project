@@ -34,12 +34,12 @@ public class RandomGeneratorIT extends DatabaseIntegrationTestSupport {
 
         String sentence = generator.generateRandom("missing", 5);
 
-        assertEquals("alpha beta", sentence);
+        assertEquals("missing alpha beta", sentence);
         assertEquals(
             1,
             queryForInt(
                 "SELECT COUNT(*) FROM generated_sentences WHERE sentence_text = ? AND algorithm_name = ?",
-                "alpha beta",
+                "missing alpha beta",
                 "random"
             )
         );
@@ -47,7 +47,7 @@ public class RandomGeneratorIT extends DatabaseIntegrationTestSupport {
             alphaId,
             queryForInt(
                 "SELECT starting_word_id FROM generated_sentences WHERE sentence_text = ?",
-                "alpha beta"
+                "missing alpha beta"
             )
         );
     }

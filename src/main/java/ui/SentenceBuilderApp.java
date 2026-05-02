@@ -23,23 +23,20 @@ package ui;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
-//Code by Archisha Sasson
-import java.util.LinkedHashMap;
-//End of Code by Archisha Sasson
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import generator.AutocompleteGateway;
+import db.AutocompleteDao;
+import db.DbGeneratorRepository;
+import db.DbReportingService;
+import db.FileDao;
+import db.ImportDao;
+import db.WordFileStatsDao;
 import generator.AutocompleteService;
 import generator.GenerationAlgorithm;
 import generator.GenerationService;
@@ -48,7 +45,6 @@ import generator.GeneratorRepository;
 import generator.GreedyGenerator;
 import generator.RandomGenerator;
 //End of Code by Archisha Sasson
-import generator.WeightedWord;
 //Code by Archisha Sasson
 import generator.WeightedGenerator;
 //End of Code by Archisha Sasson
@@ -103,10 +99,15 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import parser.FileStatsPersistenceService;
+import parser.ImportPreparationResult;
+import parser.ImportPreparationStatus;
 import parser.Normalizer;
 import parser.ParseResult;
+import parser.DatabaseConfig;
 import parser.TextParser;
 import parser.Tokenizer;
+import parser.WordDb;
 
 public class SentenceBuilderApp extends Application {
     private static final DateTimeFormatter IMPORT_TIME_FORMATTER = DateTimeFormatter.ISO_INSTANT;
@@ -125,21 +126,13 @@ public class SentenceBuilderApp extends Application {
     private static final String DRAFT_GHOST_TEXT_STYLE = DRAFT_TEXT_STYLE + "-fx-text-fill: #7a7a7a;";
     //End of Code by Archisha Sasson
 
-    // This preview app does not talk directly to the production database-backed UI flow.
-    // Instead, it keeps a lightweight in-memory model so the team can demonstrate the
-    // screens and controller interactions without requiring a full import pipeline.
-    private final DemoUiState demoState = new DemoUiState();
     private final Normalizer normalizer = new Normalizer();
-    // The preview parser reads imported text files and produces the statistics that feed
-    // the demo generation, autocomplete, and reports tabs.
-    private final TextParser previewParser = new TextParser(new Tokenizer(), new Normalizer(), false);
+    // Parser writes words, transitions, and sentence boundary counts to MySQL during import.
+    private final TextParser importParser = new TextParser(new Tokenizer(), new Normalizer(), true);
     private final ImportController importController = new ImportController();
-    // Autocomplete goes through the real controller/service layer, but the gateway is an
-    // in-memory adapter backed by DemoUiState instead of the database DAO.
+    private final GeneratorRepository uiGeneratorRepository = new DbGeneratorRepository();
     private final AutocompleteController autocompleteController =
-        new AutocompleteController(new AutocompleteService(new InMemoryAutocompleteGateway(demoState)));
-    //Code by Archisha Sasson
-    private final GeneratorRepository uiGeneratorRepository = new InMemoryGeneratorRepository(demoState);
+        new AutocompleteController(new AutocompleteService(new AutocompleteDao()));
     private final WeightedGenerator weightedGenerator =
         new WeightedGenerator(uiGeneratorRepository, new Random(), normalizer);
     private final GreedyGenerator greedyGenerator =
@@ -147,19 +140,14 @@ public class SentenceBuilderApp extends Application {
     private final RandomGenerator randomGenerator =
         new RandomGenerator(uiGeneratorRepository, new Random(), normalizer);
 
-    // Generation goes through the real controller/service contract and delegates into the
-    // actual generator classes used by the rest of the project.
     private final GenerateController generateController =
         new GenerateController(new GenerationService(
             weightedGenerator::generateWeighted,
             greedyGenerator::generateGreedy,
             randomGenerator::generateRandom
         ));
-    //End of Code by Archisha Sasson
-    // Reports are rendered from demoState so the UI can display imported word counts and
-    // generated sentence history without depending on persistence.
     private final ReportsController reportsController =
-        new ReportsController(new InMemoryReportingService(demoState));
+        new ReportsController(new DbReportingService());
 
     private final ObservableList<WordReportView> wordRows = FXCollections.observableArrayList();
     private final ObservableList<String> sentenceRows = FXCollections.observableArrayList();
@@ -277,8 +265,33 @@ public class SentenceBuilderApp extends Application {
         HBox.setHgrow(draftPane, Priority.ALWAYS);
         setWorkspaceEnabled(false);
         refreshDraftMetadata();
+        logStartupDatabaseStatus();
         refreshReports();
-        log("UI preview started. Import a text file first, then build a draft with generation and autocomplete.");
+    }
+
+    /**
+     * Opens one JDBC connection so the activity log shows a real success/failure (not just a static string).
+     */
+    private void logStartupDatabaseStatus() {
+        try (Connection conn = WordDb.openConnection()) {
+            if (!conn.isValid(3)) {
+                log("Database: connection opened but validation failed. Check MySQL is running and credentials in .env.");
+                return;
+            }
+            log(
+                "Database: connected to MySQL as "
+                    + DatabaseConfig.resolveUsername()
+                    + " ("
+                    + DatabaseConfig.resolveJdbcUrl()
+                    + "). Import a .txt file first, then build a draft with generation and autocomplete."
+            );
+        } catch (SQLException e) {
+            log(
+                "Database: could not connect — "
+                    + e.getMessage()
+                    + ". Check .env (or env vars), that MySQL is running, and that you ran database/SentenceBuilderDatabase.sql."
+            );
+        }
     }
 
     private TabPane createWorkspaceTabs(Stage stage) {
@@ -848,29 +861,35 @@ public class SentenceBuilderApp extends Application {
 
             Path path = Path.of(rawPath);
 
-            // duplicate check uses file-hash based deduplication so the same content is not imported twice
-            ImportViewState dedupState = importController.checkForDuplicate(path);
-            if (dedupState.duplicate()) {
+            final ImportPreparationResult prep;
+            try {
+                prep = importController.prepareImport(path);
+            } catch (IOException | SQLException prepException) {
+                failureCount++;
+                log("Skipped " + path.getFileName() + ": " + prepException.getMessage());
+                continue;
+            }
+
+            if (prep.status() == ImportPreparationStatus.DUPLICATE) {
                 duplicateCount++;
                 log("Skipped " + path.getFileName() + ": this file has already been imported.");
                 continue;
             }
-            if (!dedupState.valid()) {
+            if (!prep.readyToImport()) {
                 failureCount++;
-                log("Skipped " + path.getFileName() + ": " + dedupState.message());
+                log("Skipped " + path.getFileName() + ": " + prep.message());
                 continue;
             }
 
             try {
-                // parses the file and merges its data into the preview state so multiple files accumulate
-                ParseResult result = previewParser.parse(path);
-                demoState.merge(result, path);
+                ParseResult result = importParser.parse(path);
+                persistImportAfterParse(path, result, prep.fileHash());
                 lastImported = result;
                 successCount++;
                 log("Imported " + result.getFileName() + " at " + IMPORT_TIME_FORMATTER.format(result.getImportedAt()) + ".");
-            } catch (IOException exception) {
+            } catch (IOException | SQLException exception) {
                 failureCount++;
-                log("Import preview failed for " + path.getFileName() + ": " + exception.getMessage());
+                log("Import failed for " + path.getFileName() + ": " + exception.getMessage());
             }
         }
 
@@ -1506,364 +1525,23 @@ public class SentenceBuilderApp extends Application {
             "-fx-border-radius: 16;";
     }
 
-    private static final class InMemoryAutocompleteGateway implements AutocompleteGateway {
-        private final DemoUiState state;
-
-        private InMemoryAutocompleteGateway(DemoUiState state) {
-            this.state = state;
-        }
-
-        @Override
-        public List<WeightedWord> findNextWordSuggestions(String normalizedWord, int limit) {
-            // Delegates directly into the preview state's in-memory next-word model.
-            return state.findSuggestions(normalizedWord, limit);
-        }
-
-        @Override
-        public void ensureWordExists(String normalizedWord) {
-            // Registration in the preview just adds the word to a local set so it can show up
-            // in reports without touching the database.
-            state.registerWord(normalizedWord);
-        }
-    }
-
-    private static final class InMemoryReportingService implements UiReportingService {
-        private final DemoUiState state;
-
-        private InMemoryReportingService(DemoUiState state) {
-            this.state = state;
-        }
-
-        @Override public List<WordReportView> listWords(WordReportSort sort, int limit) { 
-            // Reports are computed from the imported parse result plus any user-registered words. 
-            return state.listWords(sort, limit); 
-        }
-
-        @Override
-        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText) {
-            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
-            if (searchText != null && !searchText.isBlank()) {
-                String searchLower = searchText.toLowerCase(Locale.ROOT);
-                words = words.stream()
-                    .filter(word -> word.wordText().toLowerCase(Locale.ROOT).equalsIgnoreCase(searchLower))
-                    .toList();
-            }
-            return words.stream()
-                .limit(limit)
-                .toList();
-        }
-
-        @Override
-        public List<WordReportView> listWords(WordReportSort sort, int limit, String searchText, String secondWord){
-            List<WordReportView> words = state.listWords(sort, Integer.MAX_VALUE);
-
-            // Filter by search word
-            if (searchText != null && !searchText.isBlank()) {
-                String searchLower = searchText.toLowerCase(Locale.ROOT);
-
-                words = words.stream()
-                    .filter(word -> word.wordText().equalsIgnoreCase(searchLower))
-                    .toList();
-            }
-
-            // If no second word → return normal results
-            if (secondWord == null || secondWord.isBlank()) {
-                return words.stream()
-                    .limit(limit)
-                    .map(w -> new WordReportView(
-                    w.wordText(),
-                    w.totalCount(),
-                    w.startCount(),
-                    w.endCount(),
-                    0,  // follows
-                    0   // precedes
-                ))
-                .toList();
-            }
-
-            String secondLower = secondWord.toLowerCase(Locale.ROOT);
-
-            // Compute relationships
-            return words.stream()
-                .map(w -> {
-                    String baseWord = state.normalizer.normalize(w.wordText());
-                    String second = state.normalizer.normalize(secondLower);
-                    
-                    int follows = state.countFollowing(baseWord, second);
-                    int precedes = state.countPreceding(baseWord, second);
-
-                    return new WordReportView(
-                    w.wordText(),
-                    w.totalCount(),
-                    w.startCount(),
-                    w.endCount(),
-                    follows,
-                    precedes
+    private void persistImportAfterParse(Path path, ParseResult result, String fileHash) throws SQLException {
+        try (Connection conn = WordDb.openConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                new ImportDao(conn).insertImport(
+                    path.getFileName().toString(),
+                    result.getTotalWords(),
+                    result.getImportedAt(),
+                    fileHash
                 );
-            })
-            .limit(limit)
-            .toList();
-    }
-        
-        @Override
-        public List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
-            return state.listGeneratedSentences(onlyDuplicates, limit);
-        }
-    }
-
-    //Code by Archisha Sasson
-    private static final class InMemoryGeneratorRepository implements GeneratorRepository {
-        private final DemoUiState state;
-
-        private InMemoryGeneratorRepository(DemoUiState state) {
-            this.state = state;
-        }
-
-        @Override
-        public Integer getWordId(String wordText) {
-            return state.getWordId(wordText);
-        }
-
-        @Override
-        public List<WeightedWord> getNextWords(int wordId) {
-            return state.getNextWords(wordId);
-        }
-
-        @Override
-        public List<WeightedWord> getStartWords() {
-            return state.getStartWords();
-        }
-
-        @Override
-        public void saveGeneratedSentence(String sentenceText, String algorithmName, Integer startingWordId) {
-            state.saveGeneratedSentence(sentenceText);
-        }
-    }
-    //End of Code by Archisha Sasson
-
-    private static final class DemoUiState {
-        // DemoUiState is the preview application's in-memory "model layer."
-        // It stores the imported parse result, generated sentence history, and user-registered
-        // autocomplete words so the UI can behave like a real app during demonstrations.
-        private final Normalizer normalizer = new Normalizer();
-        private ParseResult parseResult;
-        private final List<String> generatedSentences = new ArrayList<>();
-        private final Set<String> registeredWords = new LinkedHashSet<>();
-        //Code by Archisha Sasson
-        private final Map<String, Integer> wordIds = new LinkedHashMap<>();
-        private final Map<Integer, String> wordsById = new LinkedHashMap<>();
-        private int nextWordId = 1;
-        //End of Code by Archisha Sasson
-
-        private void load(ParseResult result, Path sourcePath) {
-            // Loading a new file replaces the current preview state instead of merging it.
-            this.parseResult = result;
-            this.generatedSentences.clear();
-            this.registeredWords.clear();
-            //Code by Archisha Sasson
-            this.wordIds.clear();
-            this.wordsById.clear();
-            this.nextWordId = 1;
-            result.getWordCounts().keySet().forEach(this::getOrCreateWordId);
-            //End of Code by Archisha Sasson
-        }
-
-        // Code by Shriram
-        // adds the new file's parsed counts to the existing preview state so multi-file imports accumulate rather than overwriting
-        private void merge(ParseResult incoming, Path sourcePath) {
-            // first import behaves the same as a regular load so the original flow stays untouched when only one file is brought in
-            if (parseResult == null) {
-                load(incoming, sourcePath);
-                return;
+                new FileStatsPersistenceService(new FileDao(conn), new WordFileStatsDao(conn))
+                    .persist(path, result, conn);
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
-
-            // merges per-word totals so each word's frequency reflects every imported file
-            incoming.getWordCounts().forEach((word, count) ->
-                parseResult.getWordCounts().merge(word, count, Integer::sum));
-
-            // merges sentence-start counts so generation can still pick a realistic opening word from the combined corpus
-            incoming.getSentenceStartCounts().forEach((word, count) ->
-                parseResult.getSentenceStartCounts().merge(word, count, Integer::sum));
-
-            // merges sentence-end counts to keep reports consistent with the combined data set
-            incoming.getSentenceEndCounts().forEach((word, count) ->
-                parseResult.getSentenceEndCounts().merge(word, count, Integer::sum));
-
-            // merges next-word transitions so weighted and greedy generation see all observed transitions across files
-            incoming.getNextWordCounts().forEach((current, nextMap) -> {
-                Map<String, Integer> existingNextMap = parseResult.getNextWordCounts()
-                    .computeIfAbsent(current, key -> new LinkedHashMap<>());
-                nextMap.forEach((next, count) -> existingNextMap.merge(next, count, Integer::sum));
-            });
-
-            // assigns ids for any newly seen words so autocomplete and generation can reference them
-            incoming.getWordCounts().keySet().forEach(this::getOrCreateWordId);
-
-            // updates aggregate totals so the reports tab reflects the combined corpus
-            parseResult.setTotalWords(parseResult.getTotalWords() + incoming.getTotalWords());
-            parseResult.setTotalSentences(parseResult.getTotalSentences() + incoming.getTotalSentences());
-        }
-        // End of Code by Shriram
-
-        public int countFollowing(String word, String nextWord) {
-            if (parseResult == null) return 0;
-
-            word = normalizer.normalize(word);
-            nextWord = normalizer.normalize(nextWord);
-
-            return parseResult.getNextWordCounts()
-                .getOrDefault(word, Map.of())
-                .getOrDefault(nextWord, 0);
-        }
-
-        public int countPreceding(String word, String prevWord) {
-            if (parseResult == null) return 0;
-
-            word = normalizer.normalize(word);
-            prevWord = normalizer.normalize(prevWord);
-
-            return parseResult.getNextWordCounts()
-                .getOrDefault(prevWord, Map.of())
-                .getOrDefault(word, 0);
-        }
-
-        //Code by Archisha Sasson
-        private Integer getWordId(String wordText) {
-            String normalizedWord = normalizer.normalize(wordText);
-            if (normalizedWord.isBlank()) {
-                return null;
-            }
-            if (registeredWords.contains(normalizedWord)
-                || parseResult != null && parseResult.getWordCounts().containsKey(normalizedWord)) {
-                return getOrCreateWordId(normalizedWord);
-            }
-            return null;
-        }
-
-        private List<WeightedWord> getNextWords(int wordId) {
-            if (parseResult == null) {
-                return List.of();
-            }
-
-            String currentWord = wordsById.get(wordId);
-            if (currentWord == null) {
-                return List.of();
-            }
-
-            return parseResult.getNextWordCounts().getOrDefault(currentWord, Map.of()).entrySet().stream()
-                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
-                    .thenComparing(Map.Entry::getKey))
-                .map(entry -> new WeightedWord(getOrCreateWordId(entry.getKey()), entry.getKey(), entry.getValue()))
-                .toList();
-        }
-
-        private List<WeightedWord> getStartWords() {
-            if (parseResult == null) {
-                return List.of();
-            }
-
-            return parseResult.getSentenceStartCounts().entrySet().stream()
-                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
-                    .thenComparing(Map.Entry::getKey))
-                .map(entry -> new WeightedWord(getOrCreateWordId(entry.getKey()), entry.getKey(), entry.getValue()))
-                .toList();
-        }
-
-        private void saveGeneratedSentence(String sentenceText) {
-            if (sentenceText != null && !sentenceText.isBlank()) {
-                generatedSentences.add(sentenceText);
-            }
-        }
-
-        private int getOrCreateWordId(String wordText) {
-            return wordIds.computeIfAbsent(wordText, word -> {
-                int wordId = nextWordId++;
-                wordsById.put(wordId, word);
-                return wordId;
-            });
-        }
-        //End of Code by Archisha Sasson
-
-        private List<WeightedWord> findSuggestions(String normalizedWord, int limit) {
-            // Suggestions come from the same next-word counts used for generation, but they are
-            // converted into WeightedWord records so the controller/service contract stays intact.
-            if (parseResult == null || normalizedWord.isBlank()) {
-                return List.of();
-            }
-
-            Map<String, Integer> nextWords = parseResult.getNextWordCounts().getOrDefault(normalizedWord, Map.of());
-            return nextWords.entrySet().stream()
-                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue).reversed()
-                    .thenComparing(Map.Entry::getKey))
-                .limit(limit)
-                //Code by Archisha Sasson
-                .map(entry -> new WeightedWord(getOrCreateWordId(entry.getKey()), entry.getKey(), entry.getValue()))
-                //End of Code by Archisha Sasson
-                .toList();
-        }
-
-        private void registerWord(String normalizedWord) {
-            // Registered words are tracked separately so they can appear in reports even if the
-            // imported file did not contain them.
-            if (!normalizedWord.isBlank()) {
-                registeredWords.add(normalizedWord);
-                //Code by Archisha Sasson
-                getOrCreateWordId(normalizedWord);
-                //End of Code by Archisha Sasson
-            }
-        }
-
-        private List<WordReportView> listWords(WordReportSort sort, int limit) {
-            // Reports blend imported word counts with registered words so the UI reflects both
-            // passive data (from the file) and active user interaction.
-            if (parseResult == null) {
-                return List.of();
-            }
-
-            Set<String> allWords = new LinkedHashSet<>(parseResult.getWordCounts().keySet());
-            allWords.addAll(registeredWords);
-
-            // Archisha: apply the report-screen sort modes so users can switch between alphabetical,
-            // total frequency, sentence-start count, and sentence-end count views.
-            Comparator<WordReportView> comparator = switch (sort) {
-                case TOTAL_COUNT_DESC -> Comparator.comparingInt(WordReportView::totalCount).reversed()
-                    .thenComparing(WordReportView::wordText);
-                case START_COUNT_DESC -> Comparator.comparingInt(WordReportView::startCount).reversed()
-                    .thenComparing(WordReportView::wordText);
-                case END_COUNT_DESC -> Comparator.comparingInt(WordReportView::endCount).reversed()
-                    .thenComparing(WordReportView::wordText);
-                case ALPHABETICAL -> Comparator.comparing(WordReportView::wordText);
-            };
-
-            return allWords.stream()
-                .map(word -> new WordReportView(
-                    word,
-                    parseResult.getWordCounts().getOrDefault(word, 0),
-                    parseResult.getSentenceStartCounts().getOrDefault(word, 0),
-                    parseResult.getSentenceEndCounts().getOrDefault(word, 0), 0, 0
-                ))
-                .sorted(comparator)
-                .limit(limit)
-                .toList();
-        }
-
-        private List<String> listGeneratedSentences(boolean onlyDuplicates, int limit) {
-            // Duplicate filtering helps demonstrate whether repeated generation calls are
-            // converging on the same sentence.
-            if (!onlyDuplicates) {
-                return generatedSentences.stream().limit(limit).toList();
-            }
-
-            // Archisha: highlight duplicate generated sentences in the reports view by collapsing
-            // repeated history entries down to the sentences that occurred more than once.
-            Map<String, Long> counts = generatedSentences.stream()
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-
-            return generatedSentences.stream()
-                .filter(sentence -> counts.getOrDefault(sentence, 0L) > 1)
-                .distinct()
-                .limit(limit)
-                .toList();
         }
     }
 }

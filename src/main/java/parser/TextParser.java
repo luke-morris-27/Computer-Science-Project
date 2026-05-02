@@ -91,7 +91,7 @@ public class TextParser {
         Integer lastToId = null;
         // --------------------------------------------------------------------------------------
 
-        // Shriram Janardhan: Database-backed unique word storage (MySQL) via WordDb.openConnection()
+        // Shriram Janardhan: Database-backed unique word storage via WordDb.openConnection()
         // Sammy Pandey: DB wiring for next_word + start/end counts (uses Shriram's word_id lookups)
         // Code by Archisha Sasson
         try (Connection conn = databaseWritesEnabled ? WordDb.openConnection() : null) {

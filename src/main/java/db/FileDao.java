@@ -6,7 +6,11 @@
  */
 package db;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 // Code by Shriram Janardhan
 public class FileDao {
@@ -34,14 +38,12 @@ public class FileDao {
 
             ps.executeUpdate();
 
-            // Try to get generated key (for new inserts)
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
                     return rs.getLong(1);
                 }
             }
 
-            // If it was an update, fetch the existing file_id
             String lookup = "SELECT file_id FROM files WHERE file_name = ? AND file_path = ?";
             try (PreparedStatement lookupPs = conn.prepareStatement(lookup)) {
                 lookupPs.setString(1, fileName);

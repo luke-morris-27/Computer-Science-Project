@@ -39,12 +39,13 @@ public class GreedyGeneratorIT extends DatabaseIntegrationTestSupport {
 
         String sentence = generator.generateGreedy("missing", 5);
 
-        assertEquals("beta gamma", sentence, "Expected greedy generation to use the highest-ranked fallback start word");
+        assertEquals("missing beta gamma", sentence,
+            "Unknown start words are kept, then generation continues from the best DB start word");
         assertEquals(
             1,
             queryForInt(
                 "SELECT COUNT(*) FROM generated_sentences WHERE sentence_text = ? AND algorithm_name = ?",
-                "beta gamma",
+                "missing beta gamma",
                 "greedy"
             ),
             "Expected the greedy sentence to be stored with the greedy algorithm label"
@@ -53,7 +54,7 @@ public class GreedyGeneratorIT extends DatabaseIntegrationTestSupport {
             betaId,
             queryForInt(
                 "SELECT starting_word_id FROM generated_sentences WHERE sentence_text = ?",
-                "beta gamma"
+                "missing beta gamma"
             ),
             "Expected the stored greedy sentence to keep the chosen starting word ID"
         );

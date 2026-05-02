@@ -1,0 +1,6 @@
+# Copy to database.properties (same folder: src/main/resources/) and adjust.
+# Do not commit real passwords. Prefer environment variables in shared environments.
+#
+# jdbc.url=jdbc:mysql://localhost:3306/sentence_builder?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+# jdbc.user=root
+# jdbc.password=
