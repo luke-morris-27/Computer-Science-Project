@@ -248,14 +248,9 @@ public class SentenceBuilderApp extends Application {
         workspaceTabs.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(workspaceTabs, Priority.ALWAYS);
         HBox.setHgrow(draftPane, Priority.ALWAYS);
-        boolean hasExistingData = databaseHasWorkspaceData();
-        setWorkspaceEnabled(hasExistingData);
+        setWorkspaceEnabled(false);
         refreshDraftMetadata();
         logStartupDatabaseStatus();
-        if (hasExistingData) {
-            loadStartupSummaryFromDatabase();
-            importMessageLabel.setText("Database already contains imported data. You can generate, autocomplete, and view reports immediately.");
-        }
         refreshReports();
     }
 
@@ -1529,38 +1524,4 @@ public class SentenceBuilderApp extends Application {
             "-fx-border-radius: 16;";
     }
 
-    private boolean databaseHasWorkspaceData() {
-        try (Connection conn = WordDb.openConnection()) {
-            try (java.sql.PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM next_word LIMIT 1");
-                 java.sql.ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        } catch (SQLException exception) {
-            return false;
-        }
-    }
-
-    private void loadStartupSummaryFromDatabase() {
-        try (Connection conn = WordDb.openConnection();
-             java.sql.PreparedStatement ps = conn.prepareStatement(
-                 "SELECT file_name, word_count, sentence_count "
-                     + "FROM files "
-                     + "ORDER BY imported_at DESC, file_id DESC "
-                     + "LIMIT 1"
-             );
-             java.sql.ResultSet rs = ps.executeQuery()) {
-            if (!rs.next()) {
-                return;
-            }
-
-            ParseResult result = new ParseResult();
-            result.setFileName(rs.getString("file_name"));
-            result.setTotalWords(rs.getInt("word_count"));
-            result.setTotalSentences(rs.getInt("sentence_count"));
-            result.setTotalParagraphs(0);
-            updateSummary(result);
-        } catch (SQLException exception) {
-            log("Startup summary load failed: " + exception.getMessage());
-        }
-    }
 }
