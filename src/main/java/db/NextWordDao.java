@@ -22,6 +22,14 @@ public class NextWordDao {
     private static final String MARK_PRECEDES_END =
             "UPDATE next_word SET precedes_sentence_end = TRUE WHERE from_word_id = ? AND to_word_id = ?"; // Sammy Pandey 2/27
 
+    private static final String UPSERT_INCREMENT_BY =
+            "INSERT INTO next_word (from_word_id, to_word_id, transition_count, follows_sentence_start, precedes_sentence_end) " +
+                    "VALUES (?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    "transition_count = transition_count + VALUES(transition_count), " +
+                    "follows_sentence_start = (follows_sentence_start OR VALUES(follows_sentence_start)), " +
+                    "precedes_sentence_end = (precedes_sentence_end OR VALUES(precedes_sentence_end))";
+
     public NextWordDao(Connection conn) {
         this.conn = conn;
     }
@@ -51,6 +59,21 @@ public class NextWordDao {
             ps.setInt(1, fromId); // Sammy Pandey 2/27
             ps.setInt(2, toId);   // Sammy Pandey 2/27
             ps.executeUpdate();   // Sammy Pandey 2/27
+        }
+    }
+
+    public void incrementBy(int fromId, int toId, int amount, boolean followsStart, boolean precedesEnd) throws SQLException {
+        if (amount <= 0) {
+            return;
+        }
+
+        try (PreparedStatement ps = conn.prepareStatement(UPSERT_INCREMENT_BY)) {
+            ps.setInt(1, fromId);
+            ps.setInt(2, toId);
+            ps.setInt(3, amount);
+            ps.setBoolean(4, followsStart);
+            ps.setBoolean(5, precedesEnd);
+            ps.executeUpdate();
         }
     }
 

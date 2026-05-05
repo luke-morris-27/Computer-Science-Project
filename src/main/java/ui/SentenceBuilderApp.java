@@ -34,9 +34,6 @@ import java.util.Random;
 import db.AutocompleteDao;
 import db.DbGeneratorRepository;
 import db.DbReportingService;
-import db.FileDao;
-import db.ImportDao;
-import db.WordFileStatsDao;
 import generator.AutocompleteService;
 import generator.GenerationAlgorithm;
 import generator.GenerationService;
@@ -87,7 +84,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import parser.DatabaseConfig;
-import parser.FileStatsPersistenceService;
+import parser.ImportService;
 import parser.ImportPreparationResult;
 import parser.ImportPreparationStatus;
 import parser.Normalizer;
@@ -114,8 +111,9 @@ public class SentenceBuilderApp extends Application {
     //End of Code by Archisha Sasson
 
     private final Normalizer normalizer = new Normalizer();
-    // Parser writes words, transitions, and sentence boundary counts to MySQL during import.
-    private final TextParser importParser = new TextParser(new Tokenizer(), new Normalizer(), true);
+    // Parser is pure; ImportService owns the transaction so each import is all-or-nothing.
+    private final TextParser importParser = new TextParser(new Tokenizer(), new Normalizer());
+    private final ImportService importService = new ImportService(importParser);
     private final ImportController importController = new ImportController();
     private final GeneratorRepository uiGeneratorRepository = new DbGeneratorRepository();
     private final AutocompleteController autocompleteController =
@@ -250,9 +248,14 @@ public class SentenceBuilderApp extends Application {
         workspaceTabs.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(workspaceTabs, Priority.ALWAYS);
         HBox.setHgrow(draftPane, Priority.ALWAYS);
-        setWorkspaceEnabled(false);
+        boolean hasExistingData = databaseHasWorkspaceData();
+        setWorkspaceEnabled(hasExistingData);
         refreshDraftMetadata();
         logStartupDatabaseStatus();
+        if (hasExistingData) {
+            loadStartupSummaryFromDatabase();
+            importMessageLabel.setText("Database already contains imported data. You can generate, autocomplete, and view reports immediately.");
+        }
         refreshReports();
     }
 
@@ -880,8 +883,7 @@ public class SentenceBuilderApp extends Application {
             }
 
             try {
-                ParseResult result = importParser.parse(path);
-                persistImportAfterParse(path, result, prep.fileHash());
+                ParseResult result = importService.importFile(path, prep.fileHash());
                 lastImported = result;
                 successCount++;
                 log("Imported " + result.getFileName() + " at " + IMPORT_TIME_FORMATTER.format(result.getImportedAt()) + ".");
@@ -1450,13 +1452,17 @@ public class SentenceBuilderApp extends Application {
         try {
             wordRows.setAll(reportsController.listWords(
                 reportSortBox == null ? WordReportSort.ALPHABETICAL : reportSortBox.getValue(),
-                reportWordLimitSpinner == null ? 50 : reportWordLimitSpinner.getValue(),
+                reportWordLimitSpinner == null || reportWordLimitSpinner.getValue() == null
+                    ? 50
+                    : reportWordLimitSpinner.getValue().intValue(),
                 reportSearchField == null ? "" : reportSearchField.getText(),
                 reportSecondWordField == null ? "" : reportSecondWordField.getText()
             ));
             sentenceRows.setAll(reportsController.listGeneratedSentences(
                 duplicatesOnlyCheckBox != null && duplicatesOnlyCheckBox.isSelected(),
-                reportSentenceLimitSpinner == null ? 25 : reportSentenceLimitSpinner.getValue()
+                reportSentenceLimitSpinner == null || reportSentenceLimitSpinner.getValue() == null
+                    ? 25
+                    : reportSentenceLimitSpinner.getValue().intValue()
             ));
         } catch (SQLException exception) {
             log("Refreshing reports failed: " + exception.getMessage());
@@ -1523,23 +1529,38 @@ public class SentenceBuilderApp extends Application {
             "-fx-border-radius: 16;";
     }
 
-    private void persistImportAfterParse(Path path, ParseResult result, String fileHash) throws SQLException {
+    private boolean databaseHasWorkspaceData() {
         try (Connection conn = WordDb.openConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                new ImportDao(conn).insertImport(
-                    path.getFileName().toString(),
-                    result.getTotalWords(),
-                    result.getImportedAt(),
-                    fileHash
-                );
-                new FileStatsPersistenceService(new FileDao(conn), new WordFileStatsDao(conn))
-                    .persist(path, result, conn);
-                conn.commit();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
+            try (java.sql.PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM next_word LIMIT 1");
+                 java.sql.ResultSet rs = ps.executeQuery()) {
+                return rs.next();
             }
+        } catch (SQLException exception) {
+            return false;
+        }
+    }
+
+    private void loadStartupSummaryFromDatabase() {
+        try (Connection conn = WordDb.openConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(
+                 "SELECT file_name, word_count, sentence_count "
+                     + "FROM files "
+                     + "ORDER BY imported_at DESC, file_id DESC "
+                     + "LIMIT 1"
+             );
+             java.sql.ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+                return;
+            }
+
+            ParseResult result = new ParseResult();
+            result.setFileName(rs.getString("file_name"));
+            result.setTotalWords(rs.getInt("word_count"));
+            result.setTotalSentences(rs.getInt("sentence_count"));
+            result.setTotalParagraphs(0);
+            updateSummary(result);
+        } catch (SQLException exception) {
+            log("Startup summary load failed: " + exception.getMessage());
         }
     }
 }

@@ -34,9 +34,7 @@ public class ParserTest {
     @Test
     @DisplayName("Simple file gives the expected word, sentence, and paragraph counts")
     void simpleCase() throws IOException {
-        // Code by Archisha Sasson
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
-        // End of Code by Archisha Sasson
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer());
         ParseResult result = parser.parse(resourcePath("simple.txt"));
 
         assertEquals(8, result.getTotalWords(), "simple totalWords");
@@ -52,9 +50,7 @@ public class ParserTest {
     @Test
     @DisplayName("Punctuation-heavy file keeps apostrophes, hyphens, and sentence breaks")
     void edgeCase() throws IOException {
-        // Code by Archisha Sasson
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
-        // End of Code by Archisha Sasson
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer());
         ParseResult result = parser.parse(resourcePath("edge_cases.txt"));
 
         assertEquals(11, result.getTotalWords(), "edge totalWords");
@@ -75,9 +71,7 @@ public class ParserTest {
     @Test
     @DisplayName("Paragraph file counts blank lines as paragraph breaks")
     void paragraphCase() throws IOException {
-        // Code by Archisha Sasson
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
-        // End of Code by Archisha Sasson
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer());
         ParseResult result = parser.parse(resourcePath("paragraphs.txt"));
         assertEquals(2, result.getTotalParagraphs(), "paragraph totalParagraphs");
         assertEquals(9, result.getTotalWords(), "paragraph totalWords");

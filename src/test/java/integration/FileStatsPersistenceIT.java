@@ -33,7 +33,7 @@ class FileStatsPersistenceIT extends DatabaseIntegrationTestSupport {
     @DisplayName("Persist writes files row and per-word file stats")
     void persistWritesFileAndWordFileStats() throws Exception {
         Path inputFile = writeInputFile("file-stats", "Alpha beta. Alpha alpha.");
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), false);
+        TextParser parser = new TextParser(new Tokenizer(), new Normalizer());
         ParseResult result = parser.parse(inputFile);
 
         try (Connection conn = openConnection()) {

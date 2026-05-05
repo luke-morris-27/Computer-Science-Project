@@ -8,9 +8,13 @@ package db;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.function.Supplier;
 
 public class ConnectionTransactionRunner {
+    @FunctionalInterface
+    public interface ConnectionFactory {
+        Connection open() throws SQLException;
+    }
+
     /*
      * Functional interface representing a block of work to execute
      * inside a transaction.
@@ -27,15 +31,15 @@ public class ConnectionTransactionRunner {
     }
 
     // Supplies database connection when needed
-    private final Supplier<Connection> connectionSupplier;
+    private final ConnectionFactory connectionFactory;
 
-    public ConnectionTransactionRunner(Supplier<Connection> connectionSupplier) {
-        this.connectionSupplier = connectionSupplier;
+    public ConnectionTransactionRunner(ConnectionFactory connectionFactory) {
+        this.connectionFactory = connectionFactory;
     }
 
     public <T> T run(TransactionWork<T> work) throws SQLException {
         // Acquire transaction, store original auto commit setting
-        Connection conn = connectionSupplier.get();
+        Connection conn = connectionFactory.open();
         boolean originalAutoCommit = true;
 
         try {

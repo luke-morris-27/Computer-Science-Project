@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import parser.ImportService;
 import parser.Normalizer;
 import parser.TextParser;
 import parser.Tokenizer;
@@ -32,9 +33,9 @@ public class TransitionStorageIT extends DatabaseIntegrationTestSupport {
     @DisplayName("Repeated word pairs raise the transition count instead of making duplicates")
     void repeatedWordPairsIncrementTransitionFrequency() throws Exception {
         Path inputFile = writeInputFile("repeated-pairs", "Alpha beta. Alpha beta. Alpha beta.");
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);
+        ImportService importService = new ImportService(new TextParser(new Tokenizer(), new Normalizer()));
 
-        parser.parse(inputFile);
+        importService.importFile(inputFile, "transition-storage-" + System.nanoTime());
 
         assertEquals(
             1,
@@ -66,9 +67,9 @@ public class TransitionStorageIT extends DatabaseIntegrationTestSupport {
     @DisplayName("Sentence boundaries update start and end counts")
     void sentenceBoundariesUpdateStartEndCountsAndBoundaryFlags() throws Exception {
         Path inputFile = writeInputFile("sentence-boundaries", "Alpha beta. Alpha gamma.");
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);
+        ImportService importService = new ImportService(new TextParser(new Tokenizer(), new Normalizer()));
 
-        parser.parse(inputFile);
+        importService.importFile(inputFile, "transition-storage-" + System.nanoTime());
 
         assertEquals(
             2,

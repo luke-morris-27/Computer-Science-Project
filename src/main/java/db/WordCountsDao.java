@@ -13,6 +13,8 @@ public class WordCountsDao {
 
     private static final String INC_START = "UPDATE words SET start_count = start_count + 1 WHERE word_id = ?";
     private static final String INC_END   = "UPDATE words SET end_count   = end_count   + 1 WHERE word_id = ?";
+    private static final String INC_START_BY = "UPDATE words SET start_count = start_count + ? WHERE word_id = ?";
+    private static final String INC_END_BY   = "UPDATE words SET end_count   = end_count   + ? WHERE word_id = ?";
 
     public WordCountsDao(Connection conn) {
         this.conn = conn;
@@ -28,6 +30,30 @@ public class WordCountsDao {
     public void incEnd(int wordId) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INC_END)) {
             ps.setInt(1, wordId);
+            ps.executeUpdate();
+        }
+    }
+
+    public void incStartBy(int wordId, int amount) throws SQLException {
+        if (amount <= 0) {
+            return;
+        }
+
+        try (PreparedStatement ps = conn.prepareStatement(INC_START_BY)) {
+            ps.setInt(1, amount);
+            ps.setInt(2, wordId);
+            ps.executeUpdate();
+        }
+    }
+
+    public void incEndBy(int wordId, int amount) throws SQLException {
+        if (amount <= 0) {
+            return;
+        }
+
+        try (PreparedStatement ps = conn.prepareStatement(INC_END_BY)) {
+            ps.setInt(1, amount);
+            ps.setInt(2, wordId);
             ps.executeUpdate();
         }
     }

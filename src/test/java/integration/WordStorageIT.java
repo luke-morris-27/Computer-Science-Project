@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import parser.ImportService;
 import parser.Normalizer;
 import parser.ParseResult;
 import parser.TextParser;
@@ -32,9 +33,9 @@ public class WordStorageIT extends DatabaseIntegrationTestSupport {
     @DisplayName("Repeated words reuse the same database row")
     void repeatedOccurrencesReuseTheSameWordRowAndWordId() throws Exception {
         Path inputFile = writeInputFile("repeated-occurrences", "Echo echo echo. Echo?");
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);
+        ImportService importService = new ImportService(new TextParser(new Tokenizer(), new Normalizer()));
 
-        ParseResult result = parser.parse(inputFile);
+        ParseResult result = importService.importFile(inputFile, "word-storage-" + System.nanoTime());
 
         assertEquals(4, result.getTotalWords(), "Expected all four repeated occurrences to be counted in memory");
         assertEquals(
@@ -53,9 +54,9 @@ public class WordStorageIT extends DatabaseIntegrationTestSupport {
     @DisplayName("Stored words stay lowercase without duplicate mixed-case rows")
     void normalizationStoresLowercaseWordsWithoutDuplicateMixedCaseRows() throws Exception {
         Path inputFile = writeInputFile("normalized-words", "Hello, HELLO hello!");
-        TextParser parser = new TextParser(new Tokenizer(), new Normalizer(), true);
+        ImportService importService = new ImportService(new TextParser(new Tokenizer(), new Normalizer()));
 
-        parser.parse(inputFile);
+        importService.importFile(inputFile, "word-storage-" + System.nanoTime());
 
         assertEquals(
             1,
