@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -204,6 +205,10 @@ public class SentenceBuilderApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        //Code by Archisha Sasson
+        clearImportedData();
+        //End of Code by Archisha Sasson
+
         TabPane workspaceTabs = createWorkspaceTabs(stage);
 
         workspaceTabs.setPrefWidth(660);
@@ -268,6 +273,30 @@ public class SentenceBuilderApp extends Application {
         logStartupDatabaseStatus();
         refreshReports();
     }
+
+    //Code by Archisha Sasson
+    @Override
+    public void stop() {
+        clearImportedData();
+    }
+
+    private void clearImportedData() {
+        try (Connection conn = WordDb.openConnection();
+             Statement statement = conn.createStatement()) {
+            statement.executeUpdate("SET FOREIGN_KEY_CHECKS=0");
+            statement.executeUpdate("TRUNCATE TABLE user_input_words");
+            statement.executeUpdate("TRUNCATE TABLE generated_sentences");
+            statement.executeUpdate("TRUNCATE TABLE word_file_stats");
+            statement.executeUpdate("TRUNCATE TABLE next_word");
+            statement.executeUpdate("TRUNCATE TABLE files");
+            statement.executeUpdate("TRUNCATE TABLE words");
+            statement.executeUpdate("TRUNCATE TABLE imports");
+            statement.executeUpdate("SET FOREIGN_KEY_CHECKS=1");
+        } catch (SQLException e) {
+            System.err.println("Database cleanup on close failed: " + e.getMessage());
+        }
+    }
+    //End of Code by Archisha Sasson
 
     /**
      * Opens one JDBC connection so the activity log shows a real success/failure (not just a static string).
@@ -619,12 +648,13 @@ public class SentenceBuilderApp extends Application {
 
         VBox content = new VBox(14,
             titledLabel("Sentence Generation"),
-            new Label("Leave the start word blank and the app will continue from the last word in your draft when possible."),
+            createBodyLabel("Leave the start word blank and the app will continue from the last word in your draft when possible."),
             form,
             buttonRow,
             generateOutputArea
         );
         content.setPadding(new Insets(18));
+        content.setFillWidth(true);
         content.setStyle(cardStyle("#f9eee6"));
 
         Tab tab = new Tab("Generate", content);
@@ -691,7 +721,7 @@ public class SentenceBuilderApp extends Application {
 
         VBox content = new VBox(14,
             titledLabel("Autocomplete"),
-            new Label("Single-click a suggestion to append it to the draft sentence and immediately load the next suggestions."),
+            createBodyLabel("Single-click a suggestion to append it to the draft sentence and immediately load the next suggestions."),
             form,
             requestSuggestionsButton,
             autocompleteStatusValue,
@@ -699,6 +729,7 @@ public class SentenceBuilderApp extends Application {
             new HBox(10, registerWordField, registerButton)
         );
         content.setPadding(new Insets(18));
+        content.setFillWidth(true);
         content.setStyle(cardStyle("#fbf1e8"));
 
         Tab tab = new Tab("Autocomplete", content);
@@ -728,6 +759,8 @@ public class SentenceBuilderApp extends Application {
         reportSentenceLimitSpinner.setEditable(true);
 
         duplicatesOnlyCheckBox = new CheckBox("Duplicates only");
+        duplicatesOnlyCheckBox.setWrapText(true);
+        duplicatesOnlyCheckBox.setMinWidth(155);
 
         Button refreshButton = new Button("Refresh Reports");
         refreshButton.setOnAction(event -> refreshReports());
@@ -746,9 +779,13 @@ public class SentenceBuilderApp extends Application {
         controls.add(reportSortBox, 1, 0);
         controls.add(new Label("Word limit"), 2, 0);
         controls.add(reportWordLimitSpinner, 3, 0);
-        controls.add(new Label("Sentence limit"), 0, 1);
+        Label sentenceLimitLabel = new Label("Sentence limit");
+        sentenceLimitLabel.setWrapText(true);
+        sentenceLimitLabel.setMinWidth(105);
+        controls.add(sentenceLimitLabel, 0, 1);
         controls.add(reportSentenceLimitSpinner, 1, 1);
         controls.add(duplicatesOnlyCheckBox, 2, 1);
+        GridPane.setMargin(refreshButton, new Insets(0, 0, 0, 18));
         controls.add(refreshButton, 3, 1);
         controls.add(new Label("Search"), 0, 2);
         controls.add(reportSearchField, 1, 2);
@@ -1508,6 +1545,16 @@ public class SentenceBuilderApp extends Application {
         Label label = new Label(text);
         label.setStyle("-fx-font-size: 16px; -fx-text-fill: #5b1f2a;");
         label.setWrapText(true);
+        return label;
+    }
+
+    private static Label createBodyLabel(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-text-fill: #6b3a42;");
+        label.setWrapText(true);
+        label.setPrefWidth(560);
+        label.setMinHeight(Region.USE_PREF_SIZE);
+        label.setMaxWidth(Double.MAX_VALUE);
         return label;
     }
 

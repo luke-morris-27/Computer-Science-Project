@@ -18,7 +18,6 @@ import db.ImportDao;
 import parser.ImportDeduplicationService;
 import parser.ImportHashLookup;
 import parser.ImportPreparationResult;
-import parser.ImportPreparationStatus;
 import parser.WordDb;
 
 public class ImportController {
@@ -75,16 +74,6 @@ public class ImportController {
 
     // Code by Shriram
     // hashes the file and reports whether it has already been recorded in persistent imports
-    public ImportViewState checkForDuplicate(Path file) {
-        try {
-            ImportPreparationResult result = dedupService.prepare(file, persistentHashLookup);
-            if (result.status() == ImportPreparationStatus.DUPLICATE) {
-                return new ImportViewState(false, "This file has already been imported.", true);
-            }
-            return new ImportViewState(true, "File is ready for import.");
-        } catch (IOException | SQLException exception) {
-            return new ImportViewState(false, "Could not read file: " + exception.getMessage());
-        }
-    }
+    // Deleted due to code cleanup: duplicate/useless code
     // End of Code by Shriram
 }

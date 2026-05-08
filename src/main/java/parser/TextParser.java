@@ -158,7 +158,7 @@ public class TextParser {
                 }
 
                 // Sammy Pandey: Track average word length (ParseResult extension)
-                result.addCharacters(word.length());
+                // Deleted due to code cleanup: duplicate/useless code
 
                 // Count word (Archisha Sasson base logic)
                 result.incrementWordCount(word); // Code by Archisha Sasson

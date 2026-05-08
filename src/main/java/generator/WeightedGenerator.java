@@ -110,9 +110,7 @@ public class WeightedGenerator {
     }
 
     //Code by Archisha Sasson
-    public WeightedWord chooseWeightedSuggestion(List<WeightedWord> options) {
-        return chooseWeighted(options);
-    }
+    // Deleted due to code cleanup: duplicate/useless code
     //End of Code by Archisha Sasson
 
     // Code by Shriram

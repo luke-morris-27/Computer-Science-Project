@@ -22,20 +22,11 @@ public class ParseResult {
 
     // Sammy Pandey: To track average word length -----------------------------
     // (Maybe be useful for database/reports?)
-    private int totalCharacters = 0;
-
-    public void addCharacters(int count) {
-        totalCharacters += count;
-    }
-
     /* Not using yet, but later might add to Main like this:
         System.out.println("Avg word length: " +
         String.format("%.2f", result.getAverageWordLength()) + " chars");
      */
-    public double getAverageWordLength() {
-        if (totalWords == 0) return 0;
-        return (double) totalCharacters / totalWords;
-    }
+    // Deleted due to code cleanup: duplicate/useless code
     // --------------------------------------------------------------------------
 
     private String fileName;
